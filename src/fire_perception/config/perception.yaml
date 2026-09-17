@@ -1,0 +1,60 @@
+# fire_perception/config/perception.yaml
+# ARCHITECTURE.md 4절: HSV 범위, YOLO 경로, 열/가스 점수 변환, 팬 속도.
+# STEP4 에서는 비전/팬 관련 값만 채움. thermal/gas 변환 파라미터는 STEP5 에서 추가.
+
+camera_pan_node:
+  ros__parameters:
+    sweep_speed_rad_s: 0.5        # SWEEP_FRONT 삼각파 각속도
+    sweep_min_rad: -1.5708        # -pi/2
+    sweep_max_rad: 1.5708         # +pi/2
+    search_speed_rad_s: 0.6       # SEARCH_360 각속도
+    search_min_rad: -3.14159
+    search_max_rad: 3.14159
+    track_max_rad_s: 1.0           # TRACK 모드 목표각 추종 시 각속도 제한
+    publish_rate_hz: 20.0
+
+# vision_node 는 detector(hsv|yolo) 파라미터로 backend 를 고르지만, ROS2 파라미터 yaml 은
+# 노드 이름(=vision_node) 단위로만 매칭되므로 hsv_detector/yolo_detector 파라미터도
+# vision_node 절 아래에 함께 둔다(개념적으로만 구분된 절이며 로딩은 하나로 합쳐서 이뤄짐).
+vision_node:
+  ros__parameters:
+    detector: hsv                  # hsv | yolo
+    publish_rate_hz: 5.0
+    camera_frame: camera_color_optical_frame
+    depth_topic: /camera/depth/image_raw
+    rgb_topic: /camera/color/image_raw
+    camera_info_topic: /camera/color/camera_info
+    map_frame: map
+    base_frame: base_link
+    min_confidence: 0.3
+
+    # -- hsv_detector: 빨강은 Hue 원형이라 두 구간(0 부근, 180 부근)을 OR. OpenCV Hue 범위 0~179. --
+    hue_low1: 0
+    hue_low2: 10
+    hue_high1: 170
+    hue_high2: 179
+    sat_min: 120
+    val_min: 80
+    min_area_px: 60
+    morph_kernel: 5
+
+    # -- yolo_detector --
+    model_path: ""                 # 비어있으면 fire_perception/models/fire_yolov8n.pt 를 기본으로 찾음
+    imgsz: 320
+    conf_threshold: 0.4
+    device: cpu
+    class_name: fire
+
+dataset_tools:
+  ros__parameters:
+    raw_dir: data/raw
+    dataset_dir: data/fire_yolo
+    preview_dir: data/preview
+    models_dir: models
+    target_images: 280
+    background_ratio: 0.2
+    collect_interval_s: 0.5
+    train_val_split: 0.8
+    epochs: 25
+    batch: 16
+    workers: 2

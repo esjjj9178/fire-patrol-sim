@@ -10,7 +10,7 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
 | STEP1 | 설치 스크립트 점검, 워크스페이스, 창고 월드, 맵 자동 생성 | ✅ | ⬜ | 패키지 뼈대 3개(fire_interfaces/fire_world/fire_bringup), generate_world.py --check ALL PASS, SDF `gz sdf --check` Valid |
 | STEP2 | fire_bot URDF(3층+팬 마운트), 센서, 스폰, 브리지 | ✅ | ⬜ | 무게중심 0.112m(base_footprint 기준, 총 1.858kg), check_urdf PASS, bridge.yaml 타입 전부 설치된 ros_gz_bridge convert 헤더 대조 확인 |
 | STEP3 | laser filter, EKF, AMCL, Nav2, 웨이포인트 순찰 | ✅ | ⬜ | fire_navigation(ament_python) 신설, waypoints.yaml 은 warehouse_layout.yaml 에서 sync_waypoints 로 자동 생성(단일 관리), nav2_params.yaml 은 Humble 기본값 기반 robot_radius 0.13/inflation 0.35/max 0.18 로 수정, localization_launch.py+navigation_launch.py 재사용 |
-| STEP4 | 비전(HSV → 자동 라벨 → YOLOv8n CPU 학습), 카메라 팬 | ⬜ | ⬜ | YOLO 학습은 검증 때 사용자가 실행 |
+| STEP4 | 비전(HSV → 자동 라벨 → YOLOv8n CPU 학습), 카메라 팬 | ✅ | ⬜ | fire_perception(ament_python) 신설. camera_pan_node 4모드, HSV/YOLO 공용 vision_node, 데이터 파이프라인 4종 CLI. YOLO 학습은 `/check 4`에서 사용자가 실행 |
 | STEP5 | 열화상 노드, 가스 가상센서 노드 | ⬜ | ⬜ | |
 | STEP6 | 가중치 융합 + 임무 관리 상태머신 | ⬜ | ⬜ | |
 | STEP7 | 디버그 영상, RViz 마커, MQTT 설계/스텁, 통합 시나리오 | ⬜ | ⬜ | |
@@ -45,6 +45,17 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
   `/check 3`에서 `ros2 param set /patrol_node speed_scale 0.5` 로 수동 검증 가능.
 - **[STEP3] 1바퀴 소요 시간/RTF, AMCL 수렴 오차, 장애물 회피, pause/resume 실동작은 정적 검증(빌드/pytest)
   범위 밖이라 `/check 3`에서 실제 시뮬레이션으로 확인 필요.**
+- **[STEP4] bearing 부호 규약(REP-103 CCW+)을 가정해 구현.** `vision_common.pixel_to_camera_angle`이
+  이미지 우측 물체를 음의 각도로 변환하도록 부호를 정했는데, 이는 `camera_pan_joint`의 URDF `axis`가
+  z축 CCW+ 라는 가정에 근거한다(STEP2에서 확정된 URDF를 실제로 대조하지는 않음). `/check 4`에서
+  bearing 부호가 반대로 나오면 `pixel_to_camera_angle`의 부호 하나만 뒤집으면 된다(검증 시트에 기록).
+- **[STEP4] perception.yaml 구조 결정.** ARCHITECTURE.md는 hsv_detector/yolo_detector를 별도 절로
+  적어뒀지만, ROS2 파라미터 yaml은 노드 이름 단위로만 로드되므로 실제로는 `vision_node:` 절 아래에
+  전부 합쳐 넣었다(주석으로 원래 절 구분 표시). 노드 코드는 그대로 hue_low1 등 개별 파라미터로 선언.
+- **[STEP4] 데이터 수집/라벨링/학습/평가 도구(collect_images, auto_label, train_yolo, eval_yolo)는
+  작성만 하고 실행하지 않았다(시뮬 필요, YOLO 학습 10~30분 소요).** `/check 4`에서 사용자가 순서대로
+  실행해 mAP50 ≥ 0.8, CPU FPS ≥ 5 를 확인해야 한다. HSV 자동 라벨링 품질에 학습 성능이 크게 좌우되므로
+  `data/preview/`를 꼭 육안 확인할 것.
 
 ## 변경 이력
 (이전 단계 코드를 고쳤을 때: 날짜, 단계, 이유, 영향받은 단계)
