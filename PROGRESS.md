@@ -1,12 +1,12 @@
 # PROGRESS
 
-현재 페이즈: A (환경 준비 전 — `/setup`)
-GitHub 저장소: (미연결)
+현재 페이즈: B (구현 대기)
+GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
 작업 방식: 환경 준비(`/setup`) → 한 번에 구현(`/build-all`) → 단계별 검증(`/check N`, `/pass N`)
 
 | 단계 | 내용 | 구현 | 검증 | 메모 |
 |---|---|---|---|---|
-| SETUP | 누락 패키지 설치, git/GitHub 연결, 자동 푸시 | ⬜ | – | |
+| SETUP | 누락 패키지 설치, git/GitHub 연결, 자동 푸시 | ✅ | – | 의존성 모두 사전 설치됨, GitHub public 저장소 생성 |
 | STEP1 | 설치 스크립트 점검, 워크스페이스, 창고 월드, 맵 자동 생성 | ⬜ | ⬜ | |
 | STEP2 | fire_bot URDF(3층+팬 마운트), 센서, 스폰, 브리지 | ⬜ | ⬜ | |
 | STEP3 | laser filter, EKF, AMCL, Nav2, 웨이포인트 순찰 | ⬜ | ⬜ | |
