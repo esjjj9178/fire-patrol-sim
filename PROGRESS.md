@@ -7,17 +7,26 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
 | 단계 | 내용 | 구현 | 검증 | 메모 |
 |---|---|---|---|---|
 | SETUP | 누락 패키지 설치, git/GitHub 연결, 자동 푸시 | ✅ | – | 의존성 모두 사전 설치됨, GitHub public 저장소 생성 |
-| STEP1 | 설치 스크립트 점검, 워크스페이스, 창고 월드, 맵 자동 생성 | ✅ | ⬜ | 패키지 뼈대 3개(fire_interfaces/fire_world/fire_bringup), generate_world.py --check ALL PASS, SDF `gz sdf --check` Valid |
-| STEP2 | fire_bot URDF(3층+팬 마운트), 센서, 스폰, 브리지 | ✅ | ⬜ | 무게중심 0.112m(base_footprint 기준, 총 1.858kg), check_urdf PASS, bridge.yaml 타입 전부 설치된 ros_gz_bridge convert 헤더 대조 확인 |
-| STEP3 | laser filter, EKF, AMCL, Nav2, 웨이포인트 순찰 | ✅ | ⬜ | fire_navigation(ament_python) 신설, waypoints.yaml 은 warehouse_layout.yaml 에서 sync_waypoints 로 자동 생성(단일 관리), nav2_params.yaml 은 Humble 기본값 기반 robot_radius 0.13/inflation 0.35/max 0.18 로 수정, localization_launch.py+navigation_launch.py 재사용 |
-| STEP4 | 비전(HSV → 자동 라벨 → YOLOv8n CPU 학습), 카메라 팬 | ✅ | ⬜ | fire_perception(ament_python) 신설. camera_pan_node 4모드, HSV/YOLO 공용 vision_node, 데이터 파이프라인 4종 CLI. YOLO 학습은 `/check 4`에서 사용자가 실행 |
-| STEP5 | 열화상 노드, 가스 가상센서 노드 | ✅ | ⬜ | thermal_node/virtual_thermal_node(SIM ONLY)/gas_sim_node 신설. 열화상 스케일(K=raw×0.01)은 gz-sensors8 헤더 기본값 근거로만 확정(실측 미검증). LOS/가스식 pytest 10건 통과 |
+| STEP1 | 설치 스크립트 점검, 워크스페이스, 창고 월드, 맵 자동 생성 | ✅ | ✅ | 패키지 뼈대 3개(fire_interfaces/fire_world/fire_bringup), generate_world.py --check ALL PASS, SDF `gz sdf --check` Valid. **검증 묶음1(자동)로 실측 PASS** — 아래 "검증 묶음 통합" 참고 |
+| STEP2 | fire_bot URDF(3층+팬 마운트), 센서, 스폰, 브리지 | ✅ | ✅ | 무게중심 0.112m(base_footprint 기준, 총 1.858kg), check_urdf PASS, bridge.yaml 타입 전부 설치된 ros_gz_bridge convert 헤더 대조 확인. **검증 묶음1(자동)로 실측 PASS**(토픽 8종 주기, 팬 추종, 정지 안정성) — 실행 중 `sim.launch.py`의 `robot_description` 파라미터 파싱 버그와 gz-sim8 PosePublisher 플러그인 크래시를 발견해 고침(아래 변경 이력) |
+| STEP3 | laser filter, EKF, AMCL, Nav2, 웨이포인트 순찰 | ✅ | 🔁 | fire_navigation(ament_python) 신설, waypoints.yaml 은 warehouse_layout.yaml 에서 sync_waypoints 로 자동 생성(단일 관리), nav2_params.yaml 은 Humble 기본값 기반 robot_radius 0.13/inflation 0.35/max 0.18 로 수정, localization_launch.py+navigation_launch.py 재사용. **검증 묶음2 실행 중 이 PC의 `ros-humble-diagnostic-updater`(4.0.6)가 `libdiagnostic_updater.so` 를 안 만드는 구버전이라 `scan_to_scan_filter_chain`/`ekf_node` 가 즉시 죽는 것을 발견**(→ `/tf` 없음 → AMCL/코스트맵 전부 불능). `scripts/{deps_list,check_deps,install_deps}.sh` 에 감지+upgrade 로직 추가함 — **사용자가 `bash scripts/install_deps.sh` 실행 후 재검증 필요**(사용자 확인 필요 사항 참고) |
+| STEP4 | 비전(HSV → 자동 라벨 → YOLOv8n CPU 학습), 카메라 팬 | ✅ | ✅(HSV) | fire_perception(ament_python) 신설. camera_pan_node 4모드, HSV/YOLO 공용 vision_node, 데이터 파이프라인 4종 CLI. **검증 묶음3(자동)로 HSV 백엔드 실측 PASS**(real_fire vision=1.00). YOLO 학습(`scripts/train_yolo.sh`)은 아직 사용자가 실행 안 함 — mAP50/FPS 미확인 |
+| STEP5 | 열화상 노드, 가스 가상센서 노드 | ✅ | ✅ | thermal_node/virtual_thermal_node(SIM ONLY)/gas_sim_node 신설. **열화상 스케일(K=raw×0.01) 실측으로 확정**: real_fire(600K) 정면에서 raw_value=598.8K, thermal confidence=1.0 확인(검증 묶음3). gas_strength 식도 2m 거리에서 실측 ppm≈740~770(계산과 일치) 확인. LOS/가스식 pytest 10건 통과 |
 | STEP6 | 가중치 융합 + 임무 관리 상태머신 | ✅ | ⬜ | fire_fusion(ament_python) 신설. fusion_logic.FusionStateMachine(순수 로직, pytest 5건: 확정/오탐기각/의심→확정/의심해제/센서끊김 통과) + fusion_node/mission_manager_node. `/mission/state`·`/mission/cmd` 토픽 신설(ARCHITECTURE.md 반영), STEP4 camera_pan_node.py에 SEARCH_360 재시작 조건 1줄 추가 |
 | STEP7 | 디버그 영상, RViz 마커, MQTT 설계/스텁, 통합 시나리오 | ✅ | ⬜ | viewer_node(3패널 합성) 신설, fire_iot_bridge(mqtt_bridge_node 스텁+adapters/advantech.py) 신설, full_demo.launch.py(TimerAction 8/10/15초 지연), README.md+docs/MQTT_DESIGN.md 작성. **STEP5 thermal 충돌 위험 해결**: bridge.yaml에서 thermal 항목 분리→bridge_thermal.yaml, sim.launch.py에 virtual_thermal 인자 추가해 UnlessCondition으로 조건부 브리지 |
 
 상태 표기: ⬜ 대기 / 🔄 진행 중 / ✅ 완료 / 🔁 재검증 필요 / ⚠️ 보류(사유를 메모에)
 
 ## 사용자 확인 필요 사항
+- **[검증 묶음/STEP3] `bash scripts/install_deps.sh` 실행 필요 (sudo, 유일한 정지 지점).**
+  `ros-humble-diagnostic-updater` 가 구버전(4.0.6, `libdiagnostic_updater.so` 없음)이라
+  `laser_filters`(scan_to_scan_filter_chain)와 `robot_localization`(ekf_node)이 기동 즉시
+  "cannot open shared object file" 로 죽는다 → `/tf` map→odom→base_footprint 가 전혀 안 나와서
+  AMCL/코스트맵/Nav2 전체가 동작 불능(검증 묶음2 실행 중 발견). `check_deps.sh`/`install_deps.sh`
+  에 이미 감지+upgrade(`apt-get install --only-upgrade ros-humble-diagnostic-updater`) 로직을
+  추가해 뒀다. **sudo 가 필요해 Claude가 직접 실행할 수 없으니, 사용자가 다른 터미널에서
+  `bash ~/fire_ws/scripts/install_deps.sh` 를 실행한 뒤 알려주면 묶음2/4(STEP3/6/7) 검증을
+  이어서 진행한다.**
 - **[STEP1] GPU 렌더러 불일치**: CLAUDE.md 는 "AMD 내장 그래픽"을 명시하지만 실제 이 PC는 `glxinfo -B` 기준
   Intel Mesa Graphics (RPL-P)이다. hardware-accelerated(direct rendering yes, llvmpipe 아님)라 STEP1 완료
   기준상 문제는 없으나, 실제 하드웨어 구성이 문서와 다르다는 점은 확인 바람.
@@ -128,3 +137,59 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
   여도 Gazebo thermal 브리지가 동시에 `/thermal/image_raw`를 발행해 virtual_thermal_node와
   충돌 가능)를 해결. 영향: STEP2(sim.launch.py 인자 추가, 기존 기본 동작은 변경 없음 — 재검증
   불필요), STEP5(STEP5_VERIFY.md 터미널7 절 갱신).
+
+- 2026-09-17, 검증 묶음 통합: STEP1~7 검증을 기능별 4묶음(1=월드·로봇, 2=자율주행, 3=센서 인식,
+  4=전체 시나리오)으로 묶어 자동 실행하는 도구를 새로 만들었다 — `fire_bringup/launch/verify_1~4
+  .launch.py`(기존 sim/nav/perception/full_demo.launch.py 를 include 만 함, 파라미터 재정의 없음),
+  `fire_bringup/scripts/verify_checker.py`(그룹별 자동 PASS/FAIL 판정 + `data/reports/
+  verify_group{N}_*.md` 리포트), `scripts/verify.sh`(대화형/`--auto`/`all --auto`/`stop`),
+  `scripts/train_yolo.sh`(수집→라벨→학습→평가 원샷), `docs/verify/VERIFY_QUICK.md`(요약).
+  실제로 `verify.sh 1/3 --auto` 를 돌려가며 다음 버그들을 이번에 처음 실행해보고 발견해 고쳤다
+  (전부 STEP1~7 구현 단계에서는 정적 검증만 했지 실제 `ros2 launch` 로 실행해본 적이 없던 코드):
+  1) `fire_bringup/launch/sim.launch.py`: `robot_description` 파라미터를 `Command(...)` 로 그냥
+     넘겨서 launch_ros 가 YAML 로 오인 파싱 시도 → 에러로 즉시 죽음. `ParameterValue(..., value_type
+     =str)` 로 감싸서 해결.
+  2) `fire_description/urdf/gazebo.xacro`: `PosePublisher` 플러그인에 `static_publisher`/
+     `use_pose_vector_msg`/`static_update_frequency` 태그를 같이 쓰면 gz-sim8(8.14.0)
+     `InitializeEntitiesToPublish` 에서 `std::length_error(vector::reserve)` 로 gz sim 프로세스
+     자체가 죽는다(공식 예제 `/usr/share/gz/gz-sim8/worlds/pose_publisher.sdf` 에 없는 조합).
+     최소 태그(`publish_model_pose`+`update_frequency`)만 남겨 해결.
+  3) `scripts/env.sh`: 이 PC 로그인 셸에 다른 프로젝트(`main_ws`)용 `ROS_DISCOVERY_SERVER`/
+     `ROS_SUPER_CLIENT`/`FASTRTPS_DEFAULT_PROFILES_FILE` 이 이미 export 되어 있어 fire_ws 의
+     ROS2 노드들이 서로를 못 찾았다(`ros2 node list`/`topic list` 가 비어 보임). env.sh 에서
+     세 변수를 unset 하고 `ROS_LOCALHOST_ONLY=1` 을 추가해 격리.
+  4) `scripts/env.sh`: 이 PC는 `gz sim -s --headless-rendering`(off-screen GBM/EGL) 컨텍스트
+     초기화가 실패해서(`eglinfo` 의 "GBM platform: eglInitialize failed") headless 로 띄우면
+     카메라/열화상 센서가 실제 장면 대신 빈 회색 프레임만 준다 — RGB 프레임을 저장해서 실측
+     확인함. `LIBGL_ALWAYS_SOFTWARE=1` 을 env.sh 기본값으로 켜서 해결(CLAUDE.md에 문서화된
+     폴백을 실제로 필요하다고 확정).
+  5) `scripts/kill_sim.sh`: `ros2 launch` 부모에게만 SIGTERM 을 보내던 방식이 nav2_bringup 이
+     직접 띄우는 자식 노드(controller_server/map_server/waypoint_follower/velocity_smoother/
+     lifecycle_manager 등)를 못 죽이고 남기는 것을 발견(다음 검증에서 `ros2 node list` 에 이전
+     실행의 노드가 계속 보임). 각 노드 실행 파일 이름을 직접 매칭해 SIGTERM→SIGKILL 순서로
+     정리하도록 재작성.
+  6) `scripts/{deps_list,check_deps,install_deps}.sh`: 이 PC의 `ros-humble-diagnostic-updater`
+     (4.0.6)가 `libdiagnostic_updater.so` 를 안 만드는 버전이라 `laser_filters`(scan_to_scan_filter
+     _chain)와 `robot_localization`(ekf_node)이 기동 즉시 "cannot open shared object file" 로
+     죽는 것을 발견(STEP3 검증 시도 중 - `/tf` map→odom→base_footprint 가 전혀 안 나와 원인 추적).
+     `check_deps.sh` 에 `.so` 존재 여부 점검 추가, `install_deps.sh` 에 `apt-get install
+     --only-upgrade` 단계 추가. **sudo 가 필요해 Claude가 직접 고칠 수 없음 — 사용자 확인
+     필요 사항 참고.**
+  7) `fire_perception/tools/sensor_scenario_test.py`(STEP5 도구, 이전에 한 번도 실행 안 됐었음)
+     와 새 `verify_checker.py` 그룹3 모두: (a) `ros_gz_bridge` 로 `ros_gz_interfaces/srv/
+     SetEntityPose` 를 브리지하려 했는데 이 PC의 `ros_gz_bridge`(Humble) 라이브러리에는 그 서비스용
+     `ServiceFactory` 가 아예 컴파일되어 있지 않아(`strings libros_gz_bridge_lib.so` 로 확인 —
+     `ControlWorld` 만 지원) 항상 실패 → `gz service` CLI 로 gz-transport `/world/<world>/set_pose`
+     를 직접 호출하도록 변경. (b) 텔레포트 후 카메라를 조준할 때 `/camera_pan/cmd` 에 직접
+     publish 했는데, `camera_pan_node` 가 20Hz로 계속 그 토픽에 자기 값을 재발행해서 즉시
+     덮어써짐(팬이 실제로는 0rad에 못 감) → `/camera_pan/mode`+`/camera_pan/track_bearing`(TRACK)
+     또는 `SEARCH_360` 을 거쳐야만 함. (c) `approach_pose()`(불에서 2m 앞, yaw로 정면 조준)로
+     로봇 yaw 를 맞춰도 팬 bearing 0 이 실제로 불을 안 보는 것을 실측으로 발견(마운트 경유 각도
+     차이로 추정 — 정확한 원인은 미확정, `docs/verify/STEP4_VERIFY.md`의 bearing 부호 위험요소와
+     연관 가능성 있음) → 고정 조준 대신 SEARCH_360 스윕 중 최댓값을 취하는 방식으로 두 도구 모두
+     변경(마운트 각도 가정에 안 흔들림). (d) `thermal_node` 가 프레임 내 최고 픽셀 온도를 거리/
+     입체각 감쇠 없이 그대로 confidence 로 쓰는 것도 실측으로 확인(7~10m 밖 다른 불도 아주 작게
+     잡히면 confidence=1.0) → `verify_checker.py` 그룹3의 "이 불이 아니어도 참일 수 있는" 항목은
+     기대값을 비워(`None`) 검사하지 않도록 설계(불 없는 곳/다른 불의 thermal·gas 로우 단언 제거).
+  영향: STEP1·STEP2·STEP4·STEP5 검증 통과(위 표 반영). STEP3·STEP6·STEP7 은 diagnostic_updater
+  업그레이드 후 재검증 필요(사용자 확인 필요 사항).

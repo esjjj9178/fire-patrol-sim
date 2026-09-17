@@ -82,6 +82,14 @@ else
   (( need_update )) && sudo apt-get update
 fi
 
+# --- 오래된 버전이라 apt-get install 로는 안 잡히는 패키지(upgrade 필요) ---
+if ! diagnostic_updater_lib_ok; then
+  echo "== ros-humble-diagnostic-updater 버전 올림(.so 없는 구버전 → laser_filters/ekf_node 크래시 원인) =="
+  sudo apt-get update
+  sudo apt-get install --only-upgrade -y ros-humble-diagnostic-updater
+  diagnostic_updater_lib_ok || echo "⚠️  upgrade 후에도 libdiagnostic_updater.so 를 못 찾음 - 로그 확인 필요"
+fi
+
 # --- rosdep ---
 if [[ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]]; then
   echo "== rosdep init =="

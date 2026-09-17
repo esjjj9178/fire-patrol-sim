@@ -32,6 +32,14 @@ if is_apt_installed ros-humble-ros-gz-bridge && ! is_apt_installed ros-humble-ro
   printf "  ⚠️  Fortress용 ros-humble-ros-gz 가 설치되어 있음 (이 프로젝트는 Harmonic 사용)\n"
 fi
 
+printf "\n== 런타임 라이브러리 ==\n"
+if diagnostic_updater_lib_ok; then printf "  ✅ libdiagnostic_updater.so (laser_filters/robot_localization 런타임 의존)\n"
+else
+  printf "  ❌ libdiagnostic_updater.so 없음 → ros-humble-diagnostic-updater 버전이 오래됨(4.0.6, .so 없음).\n"
+  printf "      scan_to_scan_filter_chain/ekf_node 가 즉시 죽는다 → apt upgrade 필요.\n"
+  echo "apt-upgrade ros-humble-diagnostic-updater" >> "$MISSING_FILE"; missing=1
+fi
+
 printf "\n== Python (pip --user) ==\n"
 if py_numpy_ok; then printf "  ✅ numpy<2 (%s)\n" "$(python3 -c 'import numpy;print(numpy.__version__)')"
 else printf "  ❌ numpy<2 필요\n"; echo "pip numpy" >> "$MISSING_FILE"; missing=1; fi

@@ -50,3 +50,14 @@ gz_harmonic_ok() {
 gh_repo_configured() {
   [[ -f /etc/apt/sources.list.d/github-cli.list ]]
 }
+
+# ros-humble-diagnostic-updater 4.0.6(이 PC에 설치된 버전)은 헤더/파이썬만 있고
+# libdiagnostic_updater.so 를 만들지 않는데, apt로 함께 깔린 laser_filters(scan_to_scan_filter_chain)와
+# robot_localization(ekf_node) 바이너리는 이 .so 에 동적 링크되어 있어 실행 시
+# "libdiagnostic_updater.so: cannot open shared object file" 로 죽는다(런타임 검증 중 발견,
+# STEP3 EKF/laser_filters 크래시의 근본 원인 — apt 후보 버전(4.0.7+)엔 .so 가 포함되어 upgrade 로 해결됨).
+diagnostic_updater_lib_ok() {
+  ldconfig -p 2>/dev/null | grep -q libdiagnostic_updater.so && return 0
+  find /opt/ros/humble/lib -maxdepth 1 -name 'libdiagnostic_updater.so*' 2>/dev/null | grep -q . && return 0
+  return 1
+}

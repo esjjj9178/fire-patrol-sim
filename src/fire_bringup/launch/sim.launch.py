@@ -17,6 +17,7 @@ from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 # fire_world/config/warehouse_layout.yaml 의 robot.spawn 값과 동일하게 유지한다.
@@ -48,7 +49,7 @@ def _launch_gz_sim(context, *args, **kwargs):
 def generate_launch_description():
     xacro_file = PathJoinSubstitution(
         [FindPackageShare('fire_description'), 'urdf', 'fire_bot.urdf.xacro'])
-    robot_description = Command(['xacro ', xacro_file])
+    robot_description = ParameterValue(Command(['xacro ', xacro_file]), value_type=str)
 
     robot_state_publisher = Node(
         package='robot_state_publisher',
