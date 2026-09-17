@@ -11,7 +11,7 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
 | STEP2 | fire_bot URDF(3층+팬 마운트), 센서, 스폰, 브리지 | ✅ | ⬜ | 무게중심 0.112m(base_footprint 기준, 총 1.858kg), check_urdf PASS, bridge.yaml 타입 전부 설치된 ros_gz_bridge convert 헤더 대조 확인 |
 | STEP3 | laser filter, EKF, AMCL, Nav2, 웨이포인트 순찰 | ✅ | ⬜ | fire_navigation(ament_python) 신설, waypoints.yaml 은 warehouse_layout.yaml 에서 sync_waypoints 로 자동 생성(단일 관리), nav2_params.yaml 은 Humble 기본값 기반 robot_radius 0.13/inflation 0.35/max 0.18 로 수정, localization_launch.py+navigation_launch.py 재사용 |
 | STEP4 | 비전(HSV → 자동 라벨 → YOLOv8n CPU 학습), 카메라 팬 | ✅ | ⬜ | fire_perception(ament_python) 신설. camera_pan_node 4모드, HSV/YOLO 공용 vision_node, 데이터 파이프라인 4종 CLI. YOLO 학습은 `/check 4`에서 사용자가 실행 |
-| STEP5 | 열화상 노드, 가스 가상센서 노드 | ⬜ | ⬜ | |
+| STEP5 | 열화상 노드, 가스 가상센서 노드 | ✅ | ⬜ | thermal_node/virtual_thermal_node(SIM ONLY)/gas_sim_node 신설. 열화상 스케일(K=raw×0.01)은 gz-sensors8 헤더 기본값 근거로만 확정(실측 미검증). LOS/가스식 pytest 10건 통과 |
 | STEP6 | 가중치 융합 + 임무 관리 상태머신 | ⬜ | ⬜ | |
 | STEP7 | 디버그 영상, RViz 마커, MQTT 설계/스텁, 통합 시나리오 | ⬜ | ⬜ | |
 
@@ -56,6 +56,31 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
   작성만 하고 실행하지 않았다(시뮬 필요, YOLO 학습 10~30분 소요).** `/check 4`에서 사용자가 순서대로
   실행해 mAP50 ≥ 0.8, CPU FPS ≥ 5 를 확인해야 한다. HSV 자동 라벨링 품질에 학습 성능이 크게 좌우되므로
   `data/preview/`를 꼭 육안 확인할 것.
+
+- **[STEP5] 열화상 스케일은 문서/헤더 조사로만 확정, 실측 안 됨(핵심 위험요소).**
+  `/usr/include/gz/rendering8/.../BaseThermalCamera.hh`(`resolution = 0.01f`, 기본 10mK)와
+  `ThermalCameraSensor.hh`(SetLinearResolution 문서: "temperature in kelvin / resolution") 근거로
+  `K = raw(mono16) × 0.01` 로 가정했고, `gazebo.xacro`에 `<plugin ThermalSensor>` 오버라이드가 없어
+  기본값이 적용된다고 판단했다. `/check 5`에서 real_fire(600K) 정면 raw_value 가 570~630K 범위인지
+  **반드시 실측 확인** — 벗어나면 `perception.yaml`의 `thermal_node.linear_resolution`(및
+  `virtual_thermal_node.linear_resolution`)만 조정하면 된다(값이 raw 값을 스케일하는 유일한 지점).
+- **[STEP5] gas_sim_node의 "strength" 해석.** STEP5.md 식 `base_ppm + Σ strength·exp(...)`의
+  strength를 warehouse_layout.yaml의 `gas_strength`(0~1 무차원)와 새 파라미터 `peak_ppm`(기본 1200)의
+  곱으로 해석했다 — 즉 각 불의 기여량 = `gas_strength × peak_ppm × exp(-d²/2σ²)`. real_fire 바로 앞에서
+  base(250)+peak(1200)=1450ppm 근처(ARCHITECTURE.md 임계 1500 바로 아래)가 되도록 peak_ppm을 골랐다.
+  `/check 5`에서 반응이 너무 세거나 약하면 `peak_ppm` 하나만 조정.
+- **[STEP5] virtual_thermal↔Gazebo thermal 토픽 충돌 가능성.** `virtual_thermal:=true`로 켜도
+  `bridge.yaml`은 여전히 Gazebo thermal을 `/thermal/image_raw`로 브리지하므로 두 발행자가 동시에
+  뜰 수 있다. STEP5.md 지시 범위(perception.launch.py에 노드 추가)만 수행했고 sim.launch.py/bridge.yaml
+  쪽 조건부 처리는 하지 않았다 — `/check 5`에서 실제로 겹치면 bridge.yaml에서 thermal 항목을 조건부로
+  빼거나 remap하는 조정이 필요(검증 시트에 안내 남김).
+- **[STEP5] gas 방향 힌트(gradient)는 파라미터로 구현했지만 기본 off, 시뮬 검증 안 됨.**
+  `enable_gradient_hint:=true`로 켜면 최근 20샘플의 (위치,농도) 최소자승 기울기로 bearing을 채운다 —
+  실측 검증은 `/check 5` 이후 필요시 진행.
+- **[STEP5] sensor_scenario_test.py는 Gazebo `/world/warehouse/set_pose` 서비스(ros_gz_interfaces/srv/
+  SetEntityPose)를 자체적으로 `ros_gz_bridge parameter_bridge`로 띄워 사용한다.** bridge.yaml에는
+  서비스 브리지 항목이 없다(토픽만 정의) — 이 스크립트가 실행 시마다 임시로 서비스 브리지 프로세스를
+  띄우고 끝나면 종료한다. `/check 5`에서 `ros2 service list | grep set_pose`로 존재 확인.
 
 ## 변경 이력
 (이전 단계 코드를 고쳤을 때: 날짜, 단계, 이유, 영향받은 단계)

@@ -45,6 +45,56 @@ vision_node:
     device: cpu
     class_name: fire
 
+thermal_node:
+  ros__parameters:
+    # gz-sensors8 ThermalCameraSensor 기본 linear_resolution = 0.01(10mK)
+    # (/usr/include/gz/rendering8/gz/rendering/base/BaseThermalCamera.hh:97-98,
+    #  ThermalCameraSensor.hh SetLinearResolution 문서: "temperature in kelvin / resolution").
+    # min/max_temp 기본 -inf/+inf(클리핑 없음) → raw(uint16, mono16) = K / resolution.
+    # fire_description/urdf/gazebo.xacro 의 thermal 센서에 <plugin ThermalSensor> 오버라이드가
+    # 없으므로 이 기본값이 그대로 적용된다(실측은 /check 5 에서 real_fire 를 보고 Tmax≈600K 확인).
+    linear_resolution: 0.01
+    hfov_rad: 0.96
+    score_low_k: 330.0
+    score_high_k: 450.0
+    thermal_frame: thermal_optical_frame
+    map_frame: map
+    base_frame: base_link
+    use_depth_for_range: false
+    depth_topic: /camera/depth/image_raw
+    depth_hfov_rad: 1.204
+
+virtual_thermal_node:
+  ros__parameters:
+    width: 32
+    height: 24
+    hfov_rad: 0.96
+    update_rate_hz: 8.0
+    linear_resolution: 0.01
+    ambient_k: 293.0
+    max_range_m: 15.0
+    atten_per_m: 0.03
+    atten_min_factor: 0.35
+    blob_base_radius_px: 2.0
+    gaussian_blur_ksize: 3
+    noise_std_k: 1.0
+    thermal_frame: thermal_optical_frame
+
+gas_sim_node:
+  ros__parameters:
+    base_ppm: 250.0             # MQ-2 기저 농도
+    peak_ppm: 1200.0            # is_real 불 바로 앞(d≈0)에서의 최대 추가 농도 * gas_strength
+    sigma_m: 1.5
+    tau_s: 2.0                  # 1차 지연 시정수
+    noise_std_ppm: 15.0
+    rate_hz: 10.0
+    score_low_ppm: 400.0        # ARCHITECTURE.md 5절과 동일
+    score_high_ppm: 1500.0
+    gas_frame: base_link
+    enable_gradient_hint: false
+    gradient_history_len: 20
+    gradient_min_norm: 5.0
+
 dataset_tools:
   ros__parameters:
     raw_dir: data/raw

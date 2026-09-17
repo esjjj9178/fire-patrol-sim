@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
-"""STEP4: camera_pan_node + vision_node.
+"""STEP4/STEP5: camera_pan_node + vision_node + thermal_node(또는 virtual_thermal_node) + gas_sim_node.
 
 전제: fire_bringup/launch/sim.launch.py 로 월드/로봇/브리지가 이미 떠 있어야 한다
-      (/camera/... , /joint_states, /camera_pan/cmd 토픽 필요).
+      (/camera/... , /joint_states, /camera_pan/cmd, /ground_truth/pose 토픽 필요).
 
 인자:
-  detector      (기본 hsv)  : vision_node 의 detector 파라미터(hsv|yolo)
-  use_sim_time  (기본 true)
+  detector          (기본 hsv)   : vision_node 의 detector 파라미터(hsv|yolo)
+  virtual_thermal   (기본 false) : true 면 Gazebo thermal 대신 virtual_thermal_node(SIM ONLY
+                                    폴백)가 /thermal/image_raw 를 발행한다. 이 경우 bridge.yaml 의
+                                    thermal 채널과 토픽이 겹치므로, sim.launch.py 쪽에서 Gazebo
+                                    thermal 브리지를 동시에 켜지 않도록 /check 5 에서 확인할 것.
+  use_sim_time      (기본 true)
 """
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -19,6 +24,7 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
     detector = LaunchConfiguration('detector')
+    virtual_thermal = LaunchConfiguration('virtual_thermal')
 
     perception_config = PathJoinSubstitution(
         [FindPackageShare('fire_perception'), 'config', 'perception.yaml'])
@@ -26,6 +32,8 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('detector', default_value='hsv',
                                description='vision_node backend: hsv|yolo'),
+        DeclareLaunchArgument('virtual_thermal', default_value='false',
+                               description='true면 가상 열화상 노드로 폴백'),
         DeclareLaunchArgument('use_sim_time', default_value='true'),
 
         Node(
@@ -44,5 +52,27 @@ def generate_launch_description():
                 'use_sim_time': use_sim_time,
                 'detector': detector,
             }],
+        ),
+        Node(
+            package='fire_perception',
+            executable='thermal_node',
+            name='thermal_node',
+            output='screen',
+            parameters=[perception_config, {'use_sim_time': use_sim_time}],
+        ),
+        Node(
+            package='fire_perception',
+            executable='virtual_thermal_node',
+            name='virtual_thermal_node',
+            output='screen',
+            condition=IfCondition(virtual_thermal),
+            parameters=[perception_config, {'use_sim_time': use_sim_time}],
+        ),
+        Node(
+            package='fire_perception',
+            executable='gas_sim_node',
+            name='gas_sim_node',
+            output='screen',
+            parameters=[perception_config, {'use_sim_time': use_sim_time}],
         ),
     ])

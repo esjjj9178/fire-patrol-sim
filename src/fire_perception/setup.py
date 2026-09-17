@@ -28,10 +28,14 @@ setup(
         'console_scripts': [
             'camera_pan_node = fire_perception.camera_pan_node:main',
             'vision_node = fire_perception.vision_node:main',
+            'thermal_node = fire_perception.thermal_node:main',
+            'virtual_thermal_node = fire_perception.virtual_thermal_node:main',
+            'gas_sim_node = fire_perception.gas_sim_node:main',
             'collect_images = fire_perception.tools.collect_images:main',
             'auto_label = fire_perception.tools.auto_label:main',
             'train_yolo = fire_perception.tools.train_yolo:main',
             'eval_yolo = fire_perception.tools.eval_yolo:main',
+            'sensor_scenario_test = fire_perception.tools.sensor_scenario_test:main',
         ],
     },
 )
