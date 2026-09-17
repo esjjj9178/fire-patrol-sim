@@ -22,12 +22,21 @@ done
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 
 STAGE_FILE="$WS/data/.train_yolo_stage"
-mkdir -p "$WS/data"
+mkdir -p "$WS/data/raw"   # find 가 없는 디렉터리에서 실패(pipefail 로 스크립트 조기 종료)하지 않도록 미리 만든다
 stage_done() { [[ -f "$STAGE_FILE" ]] && grep -qx "$1" "$STAGE_FILE" 2>/dev/null; }
 mark_done() { echo "$1" >> "$STAGE_FILE"; }
+count_raw_pngs() { find "$WS/data/raw" -name '*.png' 2>/dev/null | wc -l || true; }
+
+CURRENT_STAGE="0/4 빌드 확인"
+LAST_LOG_HINT=""
+on_error() {
+  local exit_code=$? line=$1
+  echo "[$(date +%H:%M:%S)] [${CURRENT_STAGE}] 실패: '${BASH_COMMAND}' (${line}번째 줄, exit=${exit_code})${LAST_LOG_HINT:+ - 로그: $LAST_LOG_HINT}"
+}
+trap 'on_error $LINENO' ERR
 
 cleanup() {
-  bash scripts/kill_sim.sh >/dev/null 2>&1
+  bash scripts/kill_sim.sh >/dev/null 2>&1 || true
 }
 trap cleanup EXIT INT TERM
 
@@ -39,7 +48,9 @@ source install/setup.bash
 TOTAL_START=$(date +%s)
 
 # ---- 1/4 이미지 수집 ----
-RAW_COUNT=$(find "$WS/data/raw" -name '*.png' 2>/dev/null | wc -l)
+CURRENT_STAGE="1/4 이미지 수집"
+LAST_LOG_HINT="/tmp/train_yolo_{sim,nav,perception}.log"
+RAW_COUNT=$(count_raw_pngs)
 if stage_done collect && [[ "$RAW_COUNT" -ge "$TARGET_IMAGES" ]]; then
   log "1/4 건너뜀(이미 ${RAW_COUNT}장 수집됨, 목표 ${TARGET_IMAGES})"
 else
@@ -63,7 +74,7 @@ else
   bash scripts/kill_sim.sh >/dev/null 2>&1 || true
   sleep 2
 
-  NEW_COUNT=$(find "$WS/data/raw" -name '*.png' 2>/dev/null | wc -l)
+  NEW_COUNT=$(count_raw_pngs)
   if [[ $COLLECT_RC -ne 0 && "$NEW_COUNT" -lt "$TARGET_IMAGES" ]]; then
     log "1/4 실패(rc=$COLLECT_RC, ${NEW_COUNT}/${TARGET_IMAGES}장) - 로그: /tmp/train_yolo_{sim,nav,perception}.log"
     log "    다시 'bash scripts/train_yolo.sh' 실행하면 ${NEW_COUNT}장부터 이어서 수집합니다."
@@ -74,6 +85,8 @@ else
 fi
 
 # ---- 2/4 자동 라벨링 ----
+CURRENT_STAGE="2/4 자동 라벨링"
+LAST_LOG_HINT=""
 if stage_done label && [[ -f "$WS/data/fire_yolo/data.yaml" ]]; then
   log "2/4 건너뜀(이미 data/fire_yolo/data.yaml 존재)"
 else
@@ -87,6 +100,7 @@ else
 fi
 
 # ---- 3/4 학습 ----
+CURRENT_STAGE="3/4 YOLO 학습"
 MODEL_OUT="$WS/src/fire_perception/models/fire_yolov8n.pt"
 if stage_done train && [[ -f "$MODEL_OUT" ]]; then
   log "3/4 건너뜀(이미 fire_yolov8n.pt 존재)"
@@ -108,8 +122,11 @@ else
 fi
 
 # ---- 4/4 평가 ----
-log "4/4 평가 시작"
-ros2 run fire_perception eval_yolo
+CURRENT_STAGE="4/4 평가"
+if ! ros2 run fire_perception eval_yolo; then
+  log "4/4 실패 - fire_yolov8n.pt 는 이미 만들어져 있으니 eval_yolo 만 다시 실행해도 됩니다."
+  exit 1
+fi
 mark_done eval
 log "4/4 완료 - 위 mAP50/CPU FPS 결과 확인(목표 mAP50>=0.8, FPS>=5). 미달 시 STEP4.md 참고해 데이터/epochs 조정 후 재실행."
 

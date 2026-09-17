@@ -61,7 +61,11 @@ def main():
     elapsed_min = (time.time() - t0) / 60.0
     print(f'학습 완료: {elapsed_min:.1f}분 소요')
 
-    best = ws / 'runs' / 'detect' / args.name / 'weights' / 'best.pt'
+    # --resume 인데 이전 실행이 체크포인트를 남기기 전에 끊겼으면 ultralytics 가
+    # <name> 대신 <name>2, <name>3... 으로 새 디렉터리를 만든다(관찰됨) - trainer.save_dir 로
+    # 실제 저장 위치를 물어봐서 고정 경로 가정이 틀리지 않게 한다.
+    save_dir = Path(model.trainer.save_dir)
+    best = save_dir / 'weights' / 'best.pt'
     if not best.is_file():
         raise SystemExit(f'best.pt 를 찾을 수 없음: {best}')
 

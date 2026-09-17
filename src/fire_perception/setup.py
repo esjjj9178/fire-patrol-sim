@@ -23,7 +23,6 @@ setup(
     maintainer_email='kmh9178@inha.edu',
     description='비전(HSV/YOLO) 화재 검출, 카메라 팬 제어, 데이터셋/학습 도구',
     license='Apache-2.0',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'camera_pan_node = fire_perception.camera_pan_node:main',

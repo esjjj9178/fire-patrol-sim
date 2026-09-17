@@ -22,7 +22,6 @@ setup(
     maintainer_email='kmh9178@inha.edu',
     description='가중치 신뢰도 융합 + 임무 관리 상태머신',
     license='Apache-2.0',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'fusion_node = fire_fusion.fusion_node:main',

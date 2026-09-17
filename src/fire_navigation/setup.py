@@ -22,7 +22,6 @@ setup(
     maintainer_email='kmh9178@inha.edu',
     description='laser filter, EKF, AMCL, Nav2, 웨이포인트 순찰 노드/설정',
     license='Apache-2.0',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'patrol_node = fire_navigation.patrol_node:main',

@@ -21,7 +21,6 @@ setup(
     maintainer_email='kmh9178@inha.edu',
     description='MQTT 브리지(설계 + 비활성 스텁)',
     license='Apache-2.0',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
             'mqtt_bridge_node = fire_iot_bridge.mqtt_bridge_node:main',
