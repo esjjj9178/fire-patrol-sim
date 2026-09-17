@@ -1,0 +1,18 @@
+# fire_iot_bridge/config/mqtt.yaml
+# ARCHITECTURE.md 4절. 기본 enabled:false — 실제 발행/구독 없이 노드만 뜬다.
+# 상세 설계(토픽/QoS/LWT/재접속/오프라인버퍼링/Advantech 매핑 TODO)는 docs/MQTT_DESIGN.md 참고.
+
+mqtt_bridge_node:
+  ros__parameters:
+    enabled: false                 # true면 로컬 mosquitto로 실제 연결
+    robot_id: fire_bot_01
+    broker_host: 127.0.0.1
+    broker_port: 1883
+    keepalive_s: 30
+    status_rate_hz: 1.0
+    telemetry_rate_hz: 1.0
+    reconnect_min_delay_s: 1.0
+    reconnect_max_delay_s: 30.0
+    offline_buffer_max: 200        # 오프라인 중 쌓아둘 event 최대 개수(초과 시 오래된 것부터 버림)
+    map_frame: map
+    base_frame: base_link

@@ -1,6 +1,6 @@
 # PROGRESS
 
-현재 페이즈: B (구현 대기)
+현재 페이즈: B (구현 전체 완료 — STEP1~7 모두 구현 ✅, 검증 페이즈 C 대기, `/check 1`부터 시작)
 GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
 작업 방식: 환경 준비(`/setup`) → 한 번에 구현(`/build-all`) → 단계별 검증(`/check N`, `/pass N`)
 
@@ -13,7 +13,7 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
 | STEP4 | 비전(HSV → 자동 라벨 → YOLOv8n CPU 학습), 카메라 팬 | ✅ | ⬜ | fire_perception(ament_python) 신설. camera_pan_node 4모드, HSV/YOLO 공용 vision_node, 데이터 파이프라인 4종 CLI. YOLO 학습은 `/check 4`에서 사용자가 실행 |
 | STEP5 | 열화상 노드, 가스 가상센서 노드 | ✅ | ⬜ | thermal_node/virtual_thermal_node(SIM ONLY)/gas_sim_node 신설. 열화상 스케일(K=raw×0.01)은 gz-sensors8 헤더 기본값 근거로만 확정(실측 미검증). LOS/가스식 pytest 10건 통과 |
 | STEP6 | 가중치 융합 + 임무 관리 상태머신 | ✅ | ⬜ | fire_fusion(ament_python) 신설. fusion_logic.FusionStateMachine(순수 로직, pytest 5건: 확정/오탐기각/의심→확정/의심해제/센서끊김 통과) + fusion_node/mission_manager_node. `/mission/state`·`/mission/cmd` 토픽 신설(ARCHITECTURE.md 반영), STEP4 camera_pan_node.py에 SEARCH_360 재시작 조건 1줄 추가 |
-| STEP7 | 디버그 영상, RViz 마커, MQTT 설계/스텁, 통합 시나리오 | ⬜ | ⬜ | |
+| STEP7 | 디버그 영상, RViz 마커, MQTT 설계/스텁, 통합 시나리오 | ✅ | ⬜ | viewer_node(3패널 합성) 신설, fire_iot_bridge(mqtt_bridge_node 스텁+adapters/advantech.py) 신설, full_demo.launch.py(TimerAction 8/10/15초 지연), README.md+docs/MQTT_DESIGN.md 작성. **STEP5 thermal 충돌 위험 해결**: bridge.yaml에서 thermal 항목 분리→bridge_thermal.yaml, sim.launch.py에 virtual_thermal 인자 추가해 UnlessCondition으로 조건부 브리지 |
 
 상태 표기: ⬜ 대기 / 🔄 진행 중 / ✅ 완료 / 🔁 재검증 필요 / ⚠️ 보류(사유를 메모에)
 
@@ -69,11 +69,12 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
   곱으로 해석했다 — 즉 각 불의 기여량 = `gas_strength × peak_ppm × exp(-d²/2σ²)`. real_fire 바로 앞에서
   base(250)+peak(1200)=1450ppm 근처(ARCHITECTURE.md 임계 1500 바로 아래)가 되도록 peak_ppm을 골랐다.
   `/check 5`에서 반응이 너무 세거나 약하면 `peak_ppm` 하나만 조정.
-- **[STEP5] virtual_thermal↔Gazebo thermal 토픽 충돌 가능성.** `virtual_thermal:=true`로 켜도
-  `bridge.yaml`은 여전히 Gazebo thermal을 `/thermal/image_raw`로 브리지하므로 두 발행자가 동시에
-  뜰 수 있다. STEP5.md 지시 범위(perception.launch.py에 노드 추가)만 수행했고 sim.launch.py/bridge.yaml
-  쪽 조건부 처리는 하지 않았다 — `/check 5`에서 실제로 겹치면 bridge.yaml에서 thermal 항목을 조건부로
-  빼거나 remap하는 조정이 필요(검증 시트에 안내 남김).
+- **[STEP5] virtual_thermal↔Gazebo thermal 토픽 충돌 — STEP7에서 해결됨.** `bridge.yaml`에서
+  thermal 항목을 `bridge_thermal.yaml`로 분리하고, `sim.launch.py`에 `virtual_thermal` 인자를
+  추가해 `true`면 `UnlessCondition`으로 이 브리지를 끄도록 고쳤다(`full_demo.launch.py`가
+  sim/perception 양쪽에 같은 값을 전달). 정적 검증(launch --show-args)까지만 확인했고,
+  실제로 발행자가 1개인지는 `/check 5`·`/check 7`에서 `ros2 topic info /thermal/image_raw -v`로
+  확인 필요.
 - **[STEP5] gas 방향 힌트(gradient)는 파라미터로 구현했지만 기본 off, 시뮬 검증 안 됨.**
   `enable_gradient_hint:=true`로 켜면 최근 20샘플의 (위치,농도) 최소자승 기울기로 bearing을 채운다 —
   실측 검증은 `/check 5` 이후 필요시 진행.
@@ -99,6 +100,20 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
   SWEEP_FRONT/SEARCH_360/TRACK/HOLD 전환 동작 자체는 변경 없음). mission_manager의 "못 찾으면
   재탐색" 로직이 이 경로에 의존한다. `docs/verify/STEP4_VERIFY.md`에도 반영함.
 
+- **[STEP7] full_demo.launch.py의 TimerAction 지연(8/10/15초)은 이 개발 PC 기준 대략값이다.**
+  느린 PC거나 처음 실행(디스크 캐시 없음)이면 Nav2/브리지가 늦게 뜨는 경우 perception/fusion이
+  일부 초기 메시지를 놓칠 수 있다(치명적이진 않음 — 각 노드가 구독 재시도하므로 곧 정상화).
+  `/check 7`에서 느리면 지연값을 늘리는 것을 검토.
+- **[STEP7] mqtt_bridge_node의 재접속/오프라인 버퍼링은 로컬 mosquitto로만 단위 스모크
+  테스트(연결 시도 로그만 확인)했고, 실제 끊김→재접속→버퍼 flush 시나리오는 `/check 7`에서
+  mosquitto를 잠깐 껐다 켜보는 식으로 확인 필요.**
+- **[STEP7] scenario_report.py의 화재 판정 매칭은 `/fire/event`의 `position`과 정답 위치 중
+  최근접(`_closest_gt_fire`)으로 이름을 추정한다.** 위치 추정 오차가 아주 크면(예: bearing 부호
+  문제가 남아있는 경우) 엉뚱한 이름에 매칭될 수 있음 — STEP4 bearing 위험요소와 연동해서 확인.
+- **[STEP7] Advantech IoT Suite 실연동은 미구현(설계+TODO 체크리스트만).**
+  `fire_iot_bridge/adapters/advantech.py`는 인터페이스와 로컬 mosquitto용 기본 구현만 있고,
+  실제 Advantech 브로커 연동은 `docs/MQTT_DESIGN.md` 4절의 체크리스트를 확인한 뒤 별도 작업 필요.
+
 ## 변경 이력
 - 2026-09-17, STEP6: `fire_perception/camera_pan_node.py`의 `_on_mode()`에 "SEARCH_360 재시작" 조건
   추가(같은 모드 재발행 시 이전 훑기가 끝난 상태면 리셋). 이유: mission_manager_node가
@@ -107,3 +122,9 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
 - 2026-09-17, STEP6: `docs/ARCHITECTURE.md` 3절 토픽 표에 `/mission/state`, `/mission/cmd` 추가.
   이유: FireStatus.mission_state를 fusion_node가 채우기 위한 내부 배선, HOLD 해제 명령의 별칭.
   영향: STEP6(fusion_node/mission_manager_node), STEP7(full_demo/MQTT 설계 시 참고).
+- 2026-09-17, STEP7: `fire_bringup/config/bridge.yaml`에서 `/thermal/image_raw` 항목을 제거하고
+  `bridge_thermal.yaml`로 분리, `fire_bringup/launch/sim.launch.py`에 `virtual_thermal` 인자 +
+  조건부 두 번째 parameter_bridge 노드 추가. 이유: STEP5에서 발견된 위험요소(virtual_thermal:=true
+  여도 Gazebo thermal 브리지가 동시에 `/thermal/image_raw`를 발행해 virtual_thermal_node와
+  충돌 가능)를 해결. 영향: STEP2(sim.launch.py 인자 추가, 기존 기본 동작은 변경 없음 — 재검증
+  불필요), STEP5(STEP5_VERIFY.md 터미널7 절 갱신).

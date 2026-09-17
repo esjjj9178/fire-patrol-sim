@@ -31,6 +31,7 @@ setup(
             'thermal_node = fire_perception.thermal_node:main',
             'virtual_thermal_node = fire_perception.virtual_thermal_node:main',
             'gas_sim_node = fire_perception.gas_sim_node:main',
+            'viewer_node = fire_perception.viewer_node:main',
             'collect_images = fire_perception.tools.collect_images:main',
             'auto_label = fire_perception.tools.auto_label:main',
             'train_yolo = fire_perception.tools.train_yolo:main',

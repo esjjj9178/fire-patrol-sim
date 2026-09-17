@@ -6,10 +6,14 @@
   gui      (기본 false) : true 면 Gazebo GUI
   rviz     (기본 false) : true 면 RViz(sim_check.rviz) 실행
   x, y, yaw              : 스폰 위치 (기본값 = fire_world/config/warehouse_layout.yaml 의 robot.spawn)
+  virtual_thermal (기본 false) : STEP7 — true 면 Gazebo 실제 thermal 브리지(bridge_thermal.yaml)를
+                                   켜지 않는다(perception.launch.py 의 virtual_thermal_node 가
+                                   대신 /thermal/image_raw 를 발행하므로 동시에 켜면 두 발행자가
+                                   충돌한다. STEP5_VERIFY.md/PROGRESS.md 변경 이력 참고).
 """
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -79,6 +83,17 @@ def generate_launch_description():
         parameters=[{'config_file': bridge_config, 'use_sim_time': True}],
     )
 
+    thermal_bridge_config = PathJoinSubstitution(
+        [FindPackageShare('fire_bringup'), 'config', 'bridge_thermal.yaml'])
+    thermal_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='ros_gz_bridge_thermal',
+        output='screen',
+        parameters=[{'config_file': thermal_bridge_config, 'use_sim_time': True}],
+        condition=UnlessCondition(LaunchConfiguration('virtual_thermal')),
+    )
+
     rviz_config = PathJoinSubstitution(
         [FindPackageShare('fire_bringup'), 'rviz', 'sim_check.rviz'])
     rviz = Node(
@@ -98,9 +113,11 @@ def generate_launch_description():
         DeclareLaunchArgument('x', default_value=DEFAULT_SPAWN_X),
         DeclareLaunchArgument('y', default_value=DEFAULT_SPAWN_Y),
         DeclareLaunchArgument('yaw', default_value=DEFAULT_SPAWN_YAW),
+        DeclareLaunchArgument('virtual_thermal', default_value='false'),
         OpaqueFunction(function=_launch_gz_sim),
         robot_state_publisher,
         spawn_robot,
         bridge,
+        thermal_bridge,
         rviz,
     ])

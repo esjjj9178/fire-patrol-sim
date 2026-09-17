@@ -95,6 +95,15 @@ gas_sim_node:
     gradient_history_len: 20
     gradient_min_norm: 5.0
 
+viewer_node:
+  ros__parameters:
+    publish_rate_hz: 5.0
+    panel_width: 213             # 좌/중/우 패널 각각의 폭(px) → 합성 640x300 근처
+    panel_height: 300
+    score_low_k: 330.0           # thermal_node 와 동일 스케일(컬러맵 정규화용)
+    score_high_k: 450.0
+    show_window: false           # true면 cv2.imshow 창도 띄움(Qt 에러 시 자동 off)
+
 dataset_tools:
   ros__parameters:
     raw_dir: data/raw

@@ -78,12 +78,13 @@ ros2 run fire_perception sensor_scenario_test
 
 ### 터미널 7 — virtual_thermal 폴백 확인 (Gazebo 열화상 대신 가상 노드)
 ```bash
-# 터미널3의 perception.launch.py 를 Ctrl+C 후 재실행
+# [STEP7 수정] sim.launch.py 도 virtual_thermal 인자를 받아 true 면 Gazebo thermal 브리지
+# (bridge_thermal.yaml)를 끈다 — 터미널1(sim.launch.py)도 virtual_thermal:=true 로 함께
+# 재실행해야 /thermal/image_raw 발행자가 virtual_thermal_node 하나만 남는다.
+# 터미널1: ros2 launch fire_bringup sim.launch.py virtual_thermal:=true
+# 터미널3(perception.launch.py)을 Ctrl+C 후 재실행:
 ros2 launch fire_bringup perception.launch.py detector:=hsv virtual_thermal:=true
-# 주의: bridge.yaml 이 여전히 Gazebo thermal 을 /thermal/image_raw 로 브리지하므로
-# 두 발행자가 겹칠 수 있음 — 겹치면 sim.launch.py 실행 시 bridge.yaml 에서 thermal 항목을
-# 빼거나(또는 remap) 확인할 것. thermal_node 는 소스에 무관하게 같은 형식을 받으므로
-# 동작 자체는 동일해야 한다.
+# 확인: ros2 topic info /thermal/image_raw -v 에 Publisher count 가 1이어야 함(virtual_thermal_node 뿐).
 ros2 run fire_perception sensor_scenario_test   # 같은 표가 나오는지 재확인
 ```
 

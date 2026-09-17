@@ -1,0 +1,11 @@
+# fire_bringup/config/bridge_thermal.yaml
+# STEP7: Gazebo 실제 열화상 카메라 브리지. bridge.yaml 에서 분리했다 — sim.launch.py 가
+# `virtual_thermal:=true` 일 때 이 브리지를 끄지 않으면 virtual_thermal_node(SIM ONLY 폴백)와
+# 동시에 같은 토픽(/thermal/image_raw)에 두 발행자가 붙어 메시지가 섞이기 때문이다
+# (문제 발견: docs/verify/STEP5_VERIFY.md, PROGRESS.md 변경 이력 참고).
+
+- ros_topic_name: "/thermal/image_raw"
+  gz_topic_name: "thermal/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
