@@ -1,0 +1,35 @@
+waypoints:
+- name: wp1
+  x: -6.0
+  y: -3.8
+  yaw: 0.0
+- name: wp2
+  x: 6.0
+  y: -3.8
+  yaw: 0.0
+- name: wp3
+  x: 6.0
+  y: -1.25
+  yaw: 0.0
+- name: wp4
+  x: -6.0
+  y: -1.25
+  yaw: 0.0
+- name: wp5
+  x: -6.0
+  y: 1.25
+  yaw: 0.0
+- name: wp6
+  x: 6.0
+  y: 1.25
+  yaw: 0.0
+- name: wp7
+  x: 6.0
+  y: 3.8
+  yaw: 0.0
+- name: wp8
+  x: -6.0
+  y: 3.8
+  yaw: 0.0
+source: fire_world/config/warehouse_layout.yaml (자동 생성 - 직접 수정 금지, sync_waypoints
+  로 갱신)

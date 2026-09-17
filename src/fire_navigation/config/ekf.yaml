@@ -1,0 +1,40 @@
+# fire_navigation/config/ekf.yaml
+# robot_localization EKF: 휠 오도메트리(/odom) + 베이스(OpenCR) IMU(/imu) -> odom -> base_footprint TF.
+# D435i IMU(/camera/imu)는 팬 회전이 섞이므로 여기서 사용하지 않는다(ARCHITECTURE.md 5절).
+ekf_filter_node:
+  ros__parameters:
+    use_sim_time: true
+    frequency: 30.0
+    two_d_mode: true
+    publish_tf: true
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_footprint
+    world_frame: odom
+    transform_time_offset: 0.0
+    sensor_timeout: 0.2
+
+    odom0: /odom
+    # x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, true,
+                   false, false, false]
+    odom0_differential: false
+    odom0_relative: false
+    odom0_queue_size: 10
+
+    imu0: /imu
+    imu0_config: [false, false, false,
+                  false, false, false,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_differential: false
+    imu0_relative: true
+    imu0_remove_gravitational_acceleration: true
+    imu0_queue_size: 10
+
+    print_diagnostics: false
+    debug: false

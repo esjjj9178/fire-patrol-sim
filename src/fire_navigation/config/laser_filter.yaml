@@ -1,0 +1,20 @@
+# fire_navigation/config/laser_filter.yaml
+# 후방 기둥(mount_pillar_link, base_link 기준 x=-0.06m, 반경 0.01m)이 /scan 후방 일부를
+# 가리는 것을 LaserScanBoxFilter 로 제거한다. base_scan 은 base_link 바로 위(같은 x,y)에
+# 고정되어 있으므로 박스 좌표는 base_link 기준으로 잡아도 base_scan 기준과 동일하다.
+# 입력 토픽: /scan (고정), 출력 토픽: /scan_filtered (고정, laser_filters 기본값).
+scan_to_scan_filter_chain:
+  ros__parameters:
+    use_sim_time: true
+    filter1:
+      name: rear_pillar_box_filter
+      type: laser_filters/LaserScanBoxFilter
+      params:
+        box_frame: base_link
+        min_x: -0.15
+        max_x: 0.0
+        min_y: -0.06
+        max_y: 0.06
+        min_z: -1.0
+        max_z: 1.0
+        invert: false   # 박스 안(기둥 반사점)을 제거

@@ -9,7 +9,7 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
 | SETUP | 누락 패키지 설치, git/GitHub 연결, 자동 푸시 | ✅ | – | 의존성 모두 사전 설치됨, GitHub public 저장소 생성 |
 | STEP1 | 설치 스크립트 점검, 워크스페이스, 창고 월드, 맵 자동 생성 | ✅ | ⬜ | 패키지 뼈대 3개(fire_interfaces/fire_world/fire_bringup), generate_world.py --check ALL PASS, SDF `gz sdf --check` Valid |
 | STEP2 | fire_bot URDF(3층+팬 마운트), 센서, 스폰, 브리지 | ✅ | ⬜ | 무게중심 0.112m(base_footprint 기준, 총 1.858kg), check_urdf PASS, bridge.yaml 타입 전부 설치된 ros_gz_bridge convert 헤더 대조 확인 |
-| STEP3 | laser filter, EKF, AMCL, Nav2, 웨이포인트 순찰 | ⬜ | ⬜ | |
+| STEP3 | laser filter, EKF, AMCL, Nav2, 웨이포인트 순찰 | ✅ | ⬜ | fire_navigation(ament_python) 신설, waypoints.yaml 은 warehouse_layout.yaml 에서 sync_waypoints 로 자동 생성(단일 관리), nav2_params.yaml 은 Humble 기본값 기반 robot_radius 0.13/inflation 0.35/max 0.18 로 수정, localization_launch.py+navigation_launch.py 재사용 |
 | STEP4 | 비전(HSV → 자동 라벨 → YOLOv8n CPU 학습), 카메라 팬 | ⬜ | ⬜ | YOLO 학습은 검증 때 사용자가 실행 |
 | STEP5 | 열화상 노드, 가스 가상센서 노드 | ⬜ | ⬜ | |
 | STEP6 | 가중치 융합 + 임무 관리 상태머신 | ⬜ | ⬜ | |
@@ -33,6 +33,18 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
 - **[STEP2] 열화상 원시값 스케일 미확정.** Gazebo Harmonic thermal 카메라의 출력 인코딩/온도 대응은
   STEP5에서 확정 예정. `/check 2`에서 real_fire를 비췄을 때 값이 안 오르면 정상적인 예상 범위이며,
   STEP5의 virtual_thermal 폴백으로 처리한다.
+- **[STEP3] AMCL 초기 위치를 파라미터에 고정값으로 박아둠.** `set_initial_pose: true` +
+  `initial_pose.{x,y,z,yaw}` = 로봇 스폰 좌표(-6.0, -3.8, 0.0)를 `nav2_params.yaml`에 직접 기록했다.
+  스폰 위치(`warehouse_layout.yaml`의 `robot.spawn`, `sim.launch.py`의 x/y/yaw 기본값)를 바꾸면
+  `nav2_params.yaml`의 `amcl.initial_pose`도 같이 바꿔야 한다(런치 인자로 자동 주입하지 않음 — 더 안전하지만
+  수동 동기화 필요, `/check 3`에서 실측 오차 확인 시 함께 검토).
+- **[STEP3] SUSPECT 감속(speed_scale) 구현 방식 결정.** `patrol_node`의 `speed_scale` 파라미터가 바뀌면
+  `/velocity_smoother/set_parameters` 서비스를 호출해 `max_velocity`/`min_velocity`를 동적으로 낮추는
+  방식을 택했다(다른 대안: DWB 파라미터 직접 변경, costmap speed limit 토픽 — 이번엔 velocity_smoother가
+  가장 단순해서 선택). mission_manager(STEP6)가 실제로 이 파라미터를 설정하기 전까지는 미사용 상태이며,
+  `/check 3`에서 `ros2 param set /patrol_node speed_scale 0.5` 로 수동 검증 가능.
+- **[STEP3] 1바퀴 소요 시간/RTF, AMCL 수렴 오차, 장애물 회피, pause/resume 실동작은 정적 검증(빌드/pytest)
+  범위 밖이라 `/check 3`에서 실제 시뮬레이션으로 확인 필요.**
 
 ## 변경 이력
 (이전 단계 코드를 고쳤을 때: 날짜, 단계, 이유, 영향받은 단계)
