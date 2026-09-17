@@ -1,0 +1,119 @@
+<?xml version="1.0"?>
+<!--
+  센서 마운트 물리 구조: 베이스 IMU, camera_pan_joint(회전 마운트) + D435i + MLX90640.
+  실제 Gazebo 센서/플러그인 정의는 gazebo.xacro 에 분리한다(REP-103 optical frame 규약 준수:
+  카메라/열화상 optical frame 은 z 전방, x 우측, y 하방).
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ===== 베이스(OpenCR) IMU — EKF 입력 ===== -->
+  <xacro:property name="imu_z" value="0.030"/>
+  <link name="imu_link">
+    <visual>
+      <geometry><box size="0.02 0.02 0.01"/></geometry>
+      <material name="fire_bot_dark"/>
+    </visual>
+  </link>
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 ${imu_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== camera_pan_joint: 회전 마운트 (mount_pillar_link 최상단, ±π) ===== -->
+  <xacro:property name="pan_plate_size" value="0.06 0.04 0.01"/>
+  <xacro:property name="pan_effort" value="2.0"/>
+  <xacro:property name="pan_velocity" value="3.0"/>
+
+  <link name="camera_pan_link">
+    <visual>
+      <geometry><box size="${pan_plate_size}"/></geometry>
+      <material name="fire_bot_dark"/>
+    </visual>
+    <collision>
+      <geometry><box size="${pan_plate_size}"/></geometry>
+    </collision>
+    <xacro:box_inertial mass="0.05" x="0.06" y="0.04" z="0.01">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:box_inertial>
+  </link>
+
+  <joint name="camera_pan_joint" type="revolute">
+    <parent link="mount_pillar_link"/>
+    <child link="camera_pan_link"/>
+    <origin xyz="0 0 ${pillar_length/2}" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="${-pi}" upper="${pi}" effort="${pan_effort}" velocity="${pan_velocity}"/>
+    <dynamics damping="0.05" friction="0.02"/>
+  </joint>
+
+  <!-- ===== D435i (camera_link, z ≈ 0.30) ===== -->
+  <xacro:property name="camera_size" value="0.090 0.025 0.025"/>
+  <link name="camera_link">
+    <visual>
+      <geometry><box size="${camera_size}"/></geometry>
+      <material name="fire_bot_camera"><color rgba="0.05 0.05 0.05 1.0"/></material>
+    </visual>
+    <collision>
+      <geometry><box size="${camera_size}"/></geometry>
+    </collision>
+    <xacro:box_inertial mass="0.072" x="0.090" y="0.025" z="0.025">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:box_inertial>
+  </link>
+  <joint name="camera_joint" type="fixed">
+    <parent link="camera_pan_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0.03 0 0.02" rpy="0 0 0"/>
+  </joint>
+
+  <!-- optical frame: z 전방, x 우측, y 하방 (REP-103) -->
+  <link name="camera_color_optical_frame"/>
+  <joint name="camera_color_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_color_optical_frame"/>
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+  </joint>
+
+  <link name="camera_depth_optical_frame"/>
+  <joint name="camera_depth_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_depth_optical_frame"/>
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+  </joint>
+
+  <link name="camera_imu_frame"/>
+  <joint name="camera_imu_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_imu_frame"/>
+    <origin xyz="-0.01 0 -0.008" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== MLX90640 (thermal_link, 카메라 바로 아래) ===== -->
+  <xacro:property name="thermal_size" value="0.030 0.020 0.012"/>
+  <link name="thermal_link">
+    <visual>
+      <geometry><box size="${thermal_size}"/></geometry>
+      <material name="fire_bot_camera"/>
+    </visual>
+    <collision>
+      <geometry><box size="${thermal_size}"/></geometry>
+    </collision>
+    <xacro:box_inertial mass="0.010" x="0.030" y="0.020" z="0.012">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:box_inertial>
+  </link>
+  <joint name="thermal_joint" type="fixed">
+    <parent link="camera_pan_link"/>
+    <child link="thermal_link"/>
+    <origin xyz="0.03 0 -0.005" rpy="0 0 0"/>
+  </joint>
+
+  <link name="thermal_optical_frame"/>
+  <joint name="thermal_optical_joint" type="fixed">
+    <parent link="thermal_link"/>
+    <child link="thermal_optical_frame"/>
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+  </joint>
+
+</robot>

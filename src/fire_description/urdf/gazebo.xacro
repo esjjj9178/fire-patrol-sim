@@ -1,0 +1,157 @@
+<?xml version="1.0"?>
+<!--
+  Gazebo Harmonic 전용 플러그인/센서 정의. CLAUDE.md "버전 함정" 준수:
+  plugin filename 은 gz-sim-*-system, 클래스는 gz::sim::systems::*, ign/ignition 문법 금지.
+  <gazebo> 블록은 xacro→URDF 변환 후 sdformat 의 URDF→SDF 변환 과정에서 그대로 SDF 로 옮겨진다
+  (ros_gz_sim create -topic robot_description 으로 스폰하는 표준 방식).
+  토픽 이름은 fire_bringup/config/bridge.yaml 과 1:1로 맞춘다(ARCHITECTURE.md 토픽 표 기준).
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ===== 모델 플러그인 ===== -->
+  <gazebo>
+    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+      <left_joint>wheel_left_joint</left_joint>
+      <right_joint>wheel_right_joint</right_joint>
+      <wheel_separation>${wheel_separation}</wheel_separation>
+      <wheel_radius>${wheel_radius}</wheel_radius>
+      <odom_publish_frequency>30</odom_publish_frequency>
+      <topic>cmd_vel</topic>
+      <odom_topic>odom</odom_topic>
+      <frame_id>odom</frame_id>
+      <child_frame_id>base_footprint</child_frame_id>
+      <tf_topic>diff_drive_tf_unused</tf_topic> <!-- SIM ONLY: EKF 가 odom→base_footprint TF 를 발행하므로 브리지하지 않음 -->
+      <max_linear_velocity>0.22</max_linear_velocity>
+      <min_linear_velocity>-0.22</min_linear_velocity>
+      <max_angular_velocity>1.8</max_angular_velocity>
+      <min_angular_velocity>-1.8</min_angular_velocity>
+      <max_linear_acceleration>1.0</max_linear_acceleration>
+      <min_linear_acceleration>-1.0</min_linear_acceleration>
+      <max_angular_acceleration>3.0</max_angular_acceleration>
+      <min_angular_acceleration>-3.0</min_angular_acceleration>
+    </plugin>
+
+    <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
+      <topic>joint_states</topic>
+      <joint_name>wheel_left_joint</joint_name>
+      <joint_name>wheel_right_joint</joint_name>
+      <joint_name>camera_pan_joint</joint_name>
+    </plugin>
+
+    <!-- SIM ONLY: 로봇 정답 위치 (가스/가상열화상 노드용). 실차에는 없음 -->
+    <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+      <publish_link_pose>false</publish_link_pose>
+      <publish_collision_pose>false</publish_collision_pose>
+      <publish_visual_pose>false</publish_visual_pose>
+      <publish_nested_model_pose>false</publish_nested_model_pose>
+      <publish_model_pose>true</publish_model_pose>
+      <use_pose_vector_msg>false</use_pose_vector_msg>
+      <static_publisher>true</static_publisher>
+      <static_update_frequency>10</static_update_frequency>
+    </plugin>
+
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>camera_pan_joint</joint_name>
+      <topic>camera_pan_cmd</topic>
+      <p_gain>5.0</p_gain>
+      <i_gain>0.05</i_gain>
+      <d_gain>0.3</d_gain>
+      <i_max>1.0</i_max>
+      <i_min>-1.0</i_min>
+      <cmd_max>${pan_effort}</cmd_max>
+      <cmd_min>${-pan_effort}</cmd_min>
+    </plugin>
+  </gazebo>
+
+  <!-- ===== base_scan: LDS-02 (gpu_lidar, 360샘플, 5Hz, 0.12~3.5m) ===== -->
+  <gazebo reference="base_scan">
+    <sensor name="lidar" type="gpu_lidar">
+      <topic>scan</topic>
+      <update_rate>5</update_rate>
+      <always_on>true</always_on>
+      <visualize>false</visualize>
+      <lidar>
+        <scan>
+          <horizontal>
+            <samples>360</samples>
+            <resolution>1</resolution>
+            <min_angle>-3.141592653589793</min_angle>
+            <max_angle>3.141592653589793</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.12</min>
+          <max>3.5</max>
+          <resolution>0.01</resolution>
+        </range>
+      </lidar>
+    </sensor>
+  </gazebo>
+
+  <!-- ===== 베이스 IMU (OpenCR, 50Hz) — EKF 입력 ===== -->
+  <gazebo reference="imu_link">
+    <sensor name="imu" type="imu">
+      <topic>imu</topic>
+      <update_rate>50</update_rate>
+      <always_on>true</always_on>
+    </sensor>
+  </gazebo>
+
+  <!-- ===== D435i RGB-D (320x240, HFOV 1.204rad, 10Hz; depth 는 동일 센서에서 함께 발행) =====
+       센서를 camera_color_optical_frame(z 전방 optical 규약이 이미 회전으로 반영된 링크)에
+       직접 붙여서, 별도 pose 보정 없이 이미지 frame_id 가 곧 camera_color_optical_frame 이 되게 한다. -->
+  <gazebo reference="camera_color_optical_frame">
+    <sensor name="rgbd_camera" type="rgbd_camera">
+      <pose>0 0 0 0 0 0</pose>
+      <topic>camera</topic>
+      <update_rate>10</update_rate>
+      <always_on>true</always_on>
+      <visualize>false</visualize>
+      <camera>
+        <horizontal_fov>1.204</horizontal_fov>
+        <image>
+          <width>320</width>
+          <height>240</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>10.0</far>
+        </clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- ===== D435i 내장 IMU (EKF 에는 사용하지 않음, 토픽만 발행) ===== -->
+  <gazebo reference="camera_imu_frame">
+    <sensor name="camera_imu" type="imu">
+      <topic>camera/imu</topic>
+      <update_rate>50</update_rate>
+      <always_on>true</always_on>
+    </sensor>
+  </gazebo>
+
+  <!-- ===== MLX90640 열화상 (32x24, HFOV 0.96rad, 8Hz) ===== -->
+  <gazebo reference="thermal_optical_frame">
+    <sensor name="thermal_camera" type="thermal">
+      <pose>0 0 0 0 0 0</pose>
+      <topic>thermal/image_raw</topic>
+      <update_rate>8</update_rate>
+      <always_on>true</always_on>
+      <visualize>false</visualize>
+      <camera>
+        <horizontal_fov>0.96</horizontal_fov>
+        <image>
+          <width>32</width>
+          <height>24</height>
+          <format>L16</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>15.0</far>
+        </clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
+</robot>

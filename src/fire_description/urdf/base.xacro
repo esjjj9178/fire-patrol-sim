@@ -1,0 +1,135 @@
+<?xml version="1.0"?>
+<!--
+  fire_bot base: TurtleBot3 Burger 기본 치수(바퀴 반경 0.033m, 바퀴 간격 0.160m,
+  몸체 약 0.138(h) x 0.178(d))를 따르는 1층(모터/OpenCR) 몸체 + 바퀴 + 캐스터.
+  관성값은 상자/원통 매크로로 근사 계산한다(매직넘버 대신 매크로 인자로 관리).
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ===== 공통 관성 매크로 ===== -->
+  <xacro:macro name="cylinder_inertial" params="mass radius length *origin">
+    <inertial>
+      <xacro:insert_block name="origin"/>
+      <mass value="${mass}"/>
+      <inertia
+        ixx="${mass*(3*radius*radius+length*length)/12}" ixy="0.0" ixz="0.0"
+        iyy="${mass*(3*radius*radius+length*length)/12}" iyz="0.0"
+        izz="${mass*radius*radius/2}"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="box_inertial" params="mass x y z *origin">
+    <inertial>
+      <xacro:insert_block name="origin"/>
+      <mass value="${mass}"/>
+      <inertia
+        ixx="${mass*(y*y+z*z)/12}" ixy="0.0" ixz="0.0"
+        iyy="${mass*(x*x+z*z)/12}" iyz="0.0"
+        izz="${mass*(x*x+y*y)/12}"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="sphere_inertial" params="mass radius *origin">
+    <inertial>
+      <xacro:insert_block name="origin"/>
+      <mass value="${mass}"/>
+      <inertia
+        ixx="${2*mass*radius*radius/5}" ixy="0.0" ixz="0.0"
+        iyy="${2*mass*radius*radius/5}" iyz="0.0"
+        izz="${2*mass*radius*radius/5}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- ===== 치수 상수 (매직넘버 금지 → xacro property) ===== -->
+  <xacro:property name="wheel_radius" value="0.033"/>
+  <xacro:property name="wheel_width" value="0.018"/>
+  <xacro:property name="wheel_separation" value="0.160"/>
+  <xacro:property name="base_radius" value="0.089"/>      <!-- 몸체 지름 0.178m -->
+  <xacro:property name="base_height" value="0.060"/>       <!-- plate1: z 0.01~0.07 -->
+  <xacro:property name="base_mass" value="0.90"/>          <!-- 모터/OpenCR 포함 1층 -->
+  <xacro:property name="wheel_mass" value="0.028"/>
+  <xacro:property name="caster_radius" value="0.010"/>
+  <xacro:property name="caster_mass" value="0.02"/>
+
+  <!-- base_footprint: 바닥 투영 기준 프레임 (z=0), EKF/Nav2 의 base_frame -->
+  <link name="base_footprint"/>
+
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 ${wheel_radius}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- base_link = plate1 (모터/OpenCR 모터 드라이버 층, z ≈ 0.01~0.07 (base_footprint 기준으로는 wheel_radius 부터)) -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 ${base_height/2}" rpy="0 0 0"/>
+      <geometry><cylinder radius="${base_radius}" length="${base_height}"/></geometry>
+      <material name="fire_bot_dark"><color rgba="0.15 0.15 0.15 1.0"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${base_height/2}" rpy="0 0 0"/>
+      <geometry><cylinder radius="${base_radius}" length="${base_height}"/></geometry>
+    </collision>
+    <xacro:box_inertial mass="${base_mass}" x="${base_radius*2}" y="${base_radius*2}" z="${base_height}">
+      <origin xyz="0 0 ${base_height/2}" rpy="0 0 0"/>
+    </xacro:box_inertial>
+  </link>
+
+  <!-- ===== 바퀴 ===== -->
+  <xacro:macro name="wheel" params="prefix reflect">
+    <link name="wheel_${prefix}_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+        <material name="fire_bot_wheel"><color rgba="0.1 0.1 0.1 1.0"/></material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+      </collision>
+      <xacro:cylinder_inertial mass="${wheel_mass}" radius="${wheel_radius}" length="${wheel_width}">
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      </xacro:cylinder_inertial>
+    </link>
+    <joint name="wheel_${prefix}_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="wheel_${prefix}_link"/>
+      <origin xyz="0 ${reflect*wheel_separation/2} 0" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <dynamics damping="0.05" friction="0.05"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:wheel prefix="left" reflect="1"/>
+  <xacro:wheel prefix="right" reflect="-1"/>
+
+  <!-- ===== 캐스터 (앞/뒤, 마찰 낮은 구) ===== -->
+  <xacro:macro name="caster" params="prefix x">
+    <link name="caster_${prefix}_link">
+      <visual>
+        <geometry><sphere radius="${caster_radius}"/></geometry>
+        <material name="fire_bot_caster"><color rgba="0.3 0.3 0.3 1.0"/></material>
+      </visual>
+      <collision>
+        <geometry><sphere radius="${caster_radius}"/></geometry>
+      </collision>
+      <xacro:sphere_inertial mass="${caster_mass}" radius="${caster_radius}">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+      </xacro:sphere_inertial>
+    </link>
+    <joint name="caster_${prefix}_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="caster_${prefix}_link"/>
+      <origin xyz="${x} 0 ${-(wheel_radius-caster_radius)}" rpy="0 0 0"/>
+    </joint>
+    <gazebo reference="caster_${prefix}_link">
+      <mu1>0.01</mu1>
+      <mu2>0.01</mu2>
+    </gazebo>
+  </xacro:macro>
+
+  <xacro:caster prefix="front" x="0.06"/>
+  <xacro:caster prefix="back" x="-0.06"/>
+
+</robot>

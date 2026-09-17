@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!--
+  fire_bot — TurtleBot3 Burger 개조 (산업현장 화재 탐지 로봇, PC 시뮬레이션 전용).
+  구조: base.xacro(베이스+바퀴+캐스터) → layers.xacro(2/3층+후방기둥) →
+        sensors.xacro(IMU/팬조인트/카메라/열화상 마운트) → gazebo.xacro(Gazebo Harmonic 플러그인/센서)
+-->
+<robot name="fire_bot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find fire_description)/urdf/base.xacro"/>
+  <xacro:include filename="$(find fire_description)/urdf/layers.xacro"/>
+  <xacro:include filename="$(find fire_description)/urdf/sensors.xacro"/>
+  <xacro:include filename="$(find fire_description)/urdf/gazebo.xacro"/>
+
+</robot>

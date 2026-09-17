@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+<!--
+  2층(Jetson Orin Nano + 배터리, 질량만 반영), 3층(LDS-02 마운트 플레이트),
+  후방 기둥(mount_pillar_link, LiDAR 후방 시야를 가리는 구조물 — laser_filters 로 STEP3 에서 제거).
+  base.xacro 의 cylinder/box 관성 매크로를 재사용한다.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:property name="plate2_z" value="0.080"/>
+  <xacro:property name="plate2_radius" value="0.075"/>
+  <xacro:property name="plate2_height" value="0.030"/>
+  <xacro:property name="plate2_mass" value="0.45"/>   <!-- Jetson Orin Nano + 배터리 -->
+
+  <xacro:property name="plate3_z" value="0.140"/>
+  <xacro:property name="plate3_radius" value="0.070"/>
+  <xacro:property name="plate3_height" value="0.010"/>
+  <xacro:property name="plate3_mass" value="0.10"/>
+
+  <xacro:property name="pillar_radius" value="0.010"/>   <!-- 직경 0.02m -->
+  <xacro:property name="pillar_x" value="-0.060"/>        <!-- 후방(뒤쪽) -->
+  <xacro:property name="pillar_bottom_z" value="0.140"/>  <!-- plate3 상단 -->
+  <xacro:property name="pillar_top_z" value="0.280"/>     <!-- 최상단: 팬 조인트 -->
+  <xacro:property name="pillar_length" value="${pillar_top_z - pillar_bottom_z}"/>
+  <xacro:property name="pillar_mass" value="0.05"/>
+
+  <xacro:property name="scan_z" value="0.170"/>
+  <xacro:property name="scan_radius" value="0.035"/>
+  <xacro:property name="scan_height" value="0.040"/>
+  <xacro:property name="scan_mass" value="0.130"/>       <!-- LDS-02 실측 근사 -->
+
+  <!-- ===== plate2: Jetson + 배터리 ===== -->
+  <link name="plate2_link">
+    <visual>
+      <geometry><cylinder radius="${plate2_radius}" length="${plate2_height}"/></geometry>
+      <material name="fire_bot_plate"><color rgba="0.2 0.2 0.25 1.0"/></material>
+    </visual>
+    <collision>
+      <geometry><cylinder radius="${plate2_radius}" length="${plate2_height}"/></geometry>
+    </collision>
+    <xacro:cylinder_inertial mass="${plate2_mass}" radius="${plate2_radius}" length="${plate2_height}">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:cylinder_inertial>
+  </link>
+  <joint name="plate2_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="plate2_link"/>
+    <origin xyz="0 0 ${plate2_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== plate3: LDS-02 마운트 플레이트 ===== -->
+  <link name="plate3_link">
+    <visual>
+      <geometry><cylinder radius="${plate3_radius}" length="${plate3_height}"/></geometry>
+      <material name="fire_bot_plate"/>
+    </visual>
+    <collision>
+      <geometry><cylinder radius="${plate3_radius}" length="${plate3_height}"/></geometry>
+    </collision>
+    <xacro:cylinder_inertial mass="${plate3_mass}" radius="${plate3_radius}" length="${plate3_height}">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:cylinder_inertial>
+  </link>
+  <joint name="plate3_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="plate3_link"/>
+    <origin xyz="0 0 ${plate3_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== base_scan: LDS-02 2D LiDAR ===== -->
+  <link name="base_scan">
+    <visual>
+      <geometry><cylinder radius="${scan_radius}" length="${scan_height}"/></geometry>
+      <material name="fire_bot_dark"/>
+    </visual>
+    <collision>
+      <geometry><cylinder radius="${scan_radius}" length="${scan_height}"/></geometry>
+    </collision>
+    <xacro:cylinder_inertial mass="${scan_mass}" radius="${scan_radius}" length="${scan_height}">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:cylinder_inertial>
+  </link>
+  <joint name="base_scan_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="base_scan"/>
+    <origin xyz="0 0 ${scan_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== mount_pillar_link: 후방 기둥(LiDAR 시야 일부를 가림 → STEP3 laser_filters 대상) ===== -->
+  <link name="mount_pillar_link">
+    <visual>
+      <geometry><cylinder radius="${pillar_radius}" length="${pillar_length}"/></geometry>
+      <material name="fire_bot_dark"/>
+    </visual>
+    <collision>
+      <geometry><cylinder radius="${pillar_radius}" length="${pillar_length}"/></geometry>
+    </collision>
+    <xacro:cylinder_inertial mass="${pillar_mass}" radius="${pillar_radius}" length="${pillar_length}">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:cylinder_inertial>
+  </link>
+  <joint name="mount_pillar_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="mount_pillar_link"/>
+    <origin xyz="${pillar_x} 0 ${pillar_bottom_z + pillar_length/2}" rpy="0 0 0"/>
+  </joint>
+
+</robot>
