@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash scripts/check_deps.sh:*)",
+      "Bash(bash scripts/setup_github.sh:*)",
+      "Bash(bash scripts/kill_sim.sh:*)",
+      "Bash(colcon build:*)",
+      "Bash(colcon test:*)",
+      "Bash(ros2 topic:*)",
+      "Bash(ros2 interface:*)",
+      "Bash(ros2 pkg:*)",
+      "Bash(ros2 node:*)",
+      "Bash(ros2 param:*)",
+      "Bash(timeout:*)",
+      "Bash(source:*)",
+      "Bash(python3:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git tag:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git remote:*)",
+      "Bash(git ls-remote:*)",
+      "Bash(gh auth status:*)",
+      "Bash(gh repo view:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push origin main --force:*)",
+      "Bash(gh repo delete:*)"
+    ]
+  }
+}
