@@ -1,0 +1,55 @@
+# fire_world/config/warehouse_layout.yaml
+# 창고 월드 + Nav2 맵의 단일 정의 파일.
+# generate_world.py 가 이 파일 하나로 worlds/warehouse.sdf 와 maps/warehouse.pgm/.yaml 을 동시에 생성한다.
+# 좌표계: 월드 중심이 원점(0,0), x=+동, y=+북. 단위 m, rad.
+
+world:
+  name: warehouse
+  size: {x: 15.0, y: 10.0}       # 전체 외곽 크기
+  wall_thickness: 0.2
+  wall_height: 2.5
+
+map:
+  resolution: 0.05               # m/px
+  # occupied: in_map true 인 wall/shelf 만 점유로 표시
+
+robot:
+  spawn: {x: -6.0, y: -3.8, yaw: 0.0}
+
+# 순찰 웨이포인트(서펜타인 루프). fire_navigation 의 waypoints.yaml 이 이 목록을 그대로 따라간다.
+waypoints:
+  - {name: wp1, x: -6.0, y: -3.8}
+  - {name: wp2, x: 6.0, y: -3.8}
+  - {name: wp3, x: 6.0, y: -1.25}
+  - {name: wp4, x: -6.0, y: -1.25}
+  - {name: wp5, x: -6.0, y: 1.25}
+  - {name: wp6, x: 6.0, y: 1.25}
+  - {name: wp7, x: 6.0, y: 3.8}
+  - {name: wp8, x: -6.0, y: 3.8}
+
+elements:
+  # ---- 외벽 4개 (in_map: true → 맵에 점유로 표시) ----
+  - {name: wall_north, type: wall, pose: {x: 0.0, y: 4.9, yaw: 0.0}, size: {l: 15.4, w: 0.2, h: 2.5}, color: [0.75, 0.75, 0.75], in_map: true}
+  - {name: wall_south, type: wall, pose: {x: 0.0, y: -4.9, yaw: 0.0}, size: {l: 15.4, w: 0.2, h: 2.5}, color: [0.75, 0.75, 0.75], in_map: true}
+  - {name: wall_east,  type: wall, pose: {x: 7.4, y: 0.0, yaw: 0.0}, size: {l: 0.2, w: 10.0, h: 2.5}, color: [0.75, 0.75, 0.75], in_map: true}
+  - {name: wall_west,  type: wall, pose: {x: -7.4, y: 0.0, yaw: 0.0}, size: {l: 0.2, w: 10.0, h: 2.5}, color: [0.75, 0.75, 0.75], in_map: true}
+
+  # ---- 선반 3줄 (in_map: true) : 통로 폭 1.9~2.0m 확보 ----
+  - {name: shelf_1, type: shelf, pose: {x: 0.0, y: -2.5, yaw: 0.0}, size: {l: 8.0, w: 0.6, h: 2.0}, color: [0.55, 0.35, 0.15], in_map: true}
+  - {name: shelf_2, type: shelf, pose: {x: 0.0, y: 0.0, yaw: 0.0}, size: {l: 8.0, w: 0.6, h: 2.0}, color: [0.55, 0.35, 0.15], in_map: true}
+  - {name: shelf_3, type: shelf, pose: {x: 0.0, y: 2.5, yaw: 0.0}, size: {l: 8.0, w: 0.6, h: 2.0}, color: [0.55, 0.35, 0.15], in_map: true}
+
+  # ---- 장애물 2개 (in_map: false, 라이다로만 인지 → STEP3 회피 시연) ----
+  - {name: obstacle_1, type: obstacle, pose: {x: 0.0, y: -3.8, yaw: 0.0}, size: {l: 0.5, w: 0.5, h: 0.5}, color: [0.5, 0.5, 0.5], in_map: false}
+  - {name: obstacle_2, type: obstacle, pose: {x: 2.0, y: 1.25, yaw: 0.0}, size: {l: 0.5, w: 0.5, h: 0.5}, color: [0.5, 0.5, 0.5], in_map: false}
+
+  # ---- 불 3개 (in_map: false) ----
+  # real_fire: 남쪽 통로, 비전+열+가스 모두 반응 → 확정
+  - {name: real_fire, type: fire, pose: {x: -3.0, y: -4.3, yaw: 0.0}, size: {l: 0.4, w: 0.4, h: 0.5}, color: [1.0, 0.0, 0.0],
+     in_map: false, temperature_k: 600.0, is_real: true, gas_strength: 1.0}
+  # fake_fire: 북쪽 통로, 빨간 박스(소화기함 역할)지만 상온 → 비전만 반응, 검증에서 기각
+  - {name: fake_fire, type: fire, pose: {x: 2.0, y: 4.3, yaw: 0.0}, size: {l: 0.4, w: 0.4, h: 0.5}, color: [1.0, 0.0, 0.0],
+     in_map: false, temperature_k: 293.0, is_real: false, gas_strength: 0.0}
+  # hidden_fire: 2번 선반 서쪽 모서리 뒤(통로1에서는 가려짐, 서쪽 끝을 돌면 통로2에서 보임) → 가스가 먼저 반응
+  - {name: hidden_fire, type: fire, pose: {x: -4.3, y: 0.6, yaw: 0.0}, size: {l: 0.4, w: 0.4, h: 0.5}, color: [1.0, 0.0, 0.0],
+     in_map: false, temperature_k: 600.0, is_real: true, gas_strength: 1.0}
