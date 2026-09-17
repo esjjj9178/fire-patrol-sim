@@ -12,7 +12,7 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
 | STEP3 | laser filter, EKF, AMCL, Nav2, 웨이포인트 순찰 | ✅ | ⬜ | fire_navigation(ament_python) 신설, waypoints.yaml 은 warehouse_layout.yaml 에서 sync_waypoints 로 자동 생성(단일 관리), nav2_params.yaml 은 Humble 기본값 기반 robot_radius 0.13/inflation 0.35/max 0.18 로 수정, localization_launch.py+navigation_launch.py 재사용 |
 | STEP4 | 비전(HSV → 자동 라벨 → YOLOv8n CPU 학습), 카메라 팬 | ✅ | ⬜ | fire_perception(ament_python) 신설. camera_pan_node 4모드, HSV/YOLO 공용 vision_node, 데이터 파이프라인 4종 CLI. YOLO 학습은 `/check 4`에서 사용자가 실행 |
 | STEP5 | 열화상 노드, 가스 가상센서 노드 | ✅ | ⬜ | thermal_node/virtual_thermal_node(SIM ONLY)/gas_sim_node 신설. 열화상 스케일(K=raw×0.01)은 gz-sensors8 헤더 기본값 근거로만 확정(실측 미검증). LOS/가스식 pytest 10건 통과 |
-| STEP6 | 가중치 융합 + 임무 관리 상태머신 | ⬜ | ⬜ | |
+| STEP6 | 가중치 융합 + 임무 관리 상태머신 | ✅ | ⬜ | fire_fusion(ament_python) 신설. fusion_logic.FusionStateMachine(순수 로직, pytest 5건: 확정/오탐기각/의심→확정/의심해제/센서끊김 통과) + fusion_node/mission_manager_node. `/mission/state`·`/mission/cmd` 토픽 신설(ARCHITECTURE.md 반영), STEP4 camera_pan_node.py에 SEARCH_360 재시작 조건 1줄 추가 |
 | STEP7 | 디버그 영상, RViz 마커, MQTT 설계/스텁, 통합 시나리오 | ⬜ | ⬜ | |
 
 상태 표기: ⬜ 대기 / 🔄 진행 중 / ✅ 완료 / 🔁 재검증 필요 / ⚠️ 보류(사유를 메모에)
@@ -82,5 +82,28 @@ GitHub 저장소: https://github.com/esjjj9178/fire-patrol-sim
   서비스 브리지 항목이 없다(토픽만 정의) — 이 스크립트가 실행 시마다 임시로 서비스 브리지 프로세스를
   띄우고 끝나면 종료한다. `/check 5`에서 `ros2 service list | grep set_pose`로 존재 확인.
 
+- **[STEP6] `/mission/state`, `/mission/cmd` 토픽을 새로 만들었다(ARCHITECTURE.md 3절에 반영 완료).**
+  FireStatus.mission_state를 fusion_node가 채우려면 mission_manager의 mission_state를 알아야 해서
+  추가했다. 둘 다 STEP6.md에는 명시되지 않았던 내부 배선 토픽이므로, 나중에 인터페이스를 다시 볼 때
+  참고할 것.
+- **[STEP6] APPROACH의 "코스트맵상 비어있는 지점" 판정은 `/global_costmap/costmap`
+  (OccupancyGrid, TRANSIENT_LOCAL QoS) 구독으로 구현했고, 코스트맵을 아직 못 받았으면 항상
+  "비어있다"고 가정한다(최선 노력 — 실제 회피는 Nav2 로컬플래너가 최종적으로 처리하므로 안전하지만,
+  8방향 후보 로직 자체는 `/check 6`에서 hidden_fire처럼 선반 근처인 경우로 실측 필요).
+- **[STEP6] mission_manager가 Nav2 액션(`navigate_to_pose`)을 patrol_node의 BasicNavigator와는
+  별도의 ActionClient로 직접 호출한다.** patrol_node는 APPROACH 진입 시 `/patrol/cmd pause`로
+  자신의 목표를 취소하므로 두 클라이언트가 동시에 활성 목표를 갖지는 않지만, 이 가정이 실제로
+  깨지지 않는지 `/check 6`에서 확인 필요.
+- **[STEP5→STEP6] STEP4 `fire_perception/camera_pan_node.py`를 한 줄 조건 추가로 수정했다** —
+  이미 SEARCH_360이고 이전 훑기가 끝난 상태에서 같은 모드를 재요청하면 재시작하도록(기존
+  SWEEP_FRONT/SEARCH_360/TRACK/HOLD 전환 동작 자체는 변경 없음). mission_manager의 "못 찾으면
+  재탐색" 로직이 이 경로에 의존한다. `docs/verify/STEP4_VERIFY.md`에도 반영함.
+
 ## 변경 이력
-(이전 단계 코드를 고쳤을 때: 날짜, 단계, 이유, 영향받은 단계)
+- 2026-09-17, STEP6: `fire_perception/camera_pan_node.py`의 `_on_mode()`에 "SEARCH_360 재시작" 조건
+  추가(같은 모드 재발행 시 이전 훑기가 끝난 상태면 리셋). 이유: mission_manager_node가
+  "SEARCH_360 한 바퀴 돌고도 못 찾으면 재탐색"을 구현하려면 camera_pan_node가 모드 값 재발행만으로
+  재시작을 지원해야 했음. 영향: STEP4(완료 기준 재검증 불필요 — 기존 전환 동작 그대로), STEP6.
+- 2026-09-17, STEP6: `docs/ARCHITECTURE.md` 3절 토픽 표에 `/mission/state`, `/mission/cmd` 추가.
+  이유: FireStatus.mission_state를 fusion_node가 채우기 위한 내부 배선, HOLD 해제 명령의 별칭.
+  영향: STEP6(fusion_node/mission_manager_node), STEP7(full_demo/MQTT 설계 시 참고).

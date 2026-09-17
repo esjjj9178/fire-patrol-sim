@@ -1,0 +1,45 @@
+# fire_fusion/config/fusion.yaml
+# ARCHITECTURE.md 6절 / STEP6.md 의 판정·임무 파라미터.
+# ROS2 파라미터 yaml 은 노드 이름 단위로 로드되므로 fusion_node/mission_manager_node 가
+# 함께 참조하는 값(stale_timeout_s, sensor_high, approach_distance_m 등)은 각 절에 중복 기재한다
+# (fire_perception/config/perception.yaml 의 기존 관례와 동일).
+
+fusion_node:
+  ros__parameters:
+    weight_vision: 0.4
+    weight_thermal: 0.4
+    weight_gas: 0.2
+    ema_alpha: 0.3
+    sensor_high: 0.5
+    confirm_threshold: 0.7
+    release_threshold: 0.4
+    stale_timeout_s: 1.0
+    verify_timeout_s: 6.0
+    confirm_hold_s: 1.0
+    false_alarm_radius_m: 1.5
+    false_alarm_ignore_s: 60.0
+    position_window: 10
+    publish_rate_hz: 10.0
+    map_frame: map
+    base_frame: base_link
+    suspect_marker_radius_m: 2.0
+
+mission_manager_node:
+  ros__parameters:
+    robot_id: fire_bot_01
+    map_frame: map
+    base_frame: base_link
+    stale_timeout_s: 1.0
+    approach_distance_m: 1.5
+    suspect_release_s: 15.0
+    sensor_high: 0.5
+    search_speed_scale: 0.5
+    patrol_speed_scale: 1.0
+    costmap_topic: /global_costmap/costmap
+    occupied_threshold: 50
+    approach_candidates: 8
+    watchdog_rate_hz: 2.0
+    tracking_rate_hz: 5.0
+    resume_ignore_s: 5.0
+    track_lost_grace_s: 2.0
+    max_approach_retries: 3

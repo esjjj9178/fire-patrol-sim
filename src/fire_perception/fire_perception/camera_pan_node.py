@@ -62,6 +62,12 @@ class CameraPanNode(Node):
                 self._search_active = True
             elif new_mode == MODE_SWEEP:
                 self._sweep_dir = 1 if self._target <= 0 else -1
+        elif new_mode == MODE_SEARCH and not self._search_active:
+            # 이미 SEARCH_360 이고 이전 훑기가 끝난 상태에서 같은 모드를 재요청 -> 재시작.
+            # mission_manager_node(STEP6)가 SEARCH_360 을 반복시키는 데 사용한다.
+            self.get_logger().info('SEARCH_360 재시작 요청')
+            self._target = self.get_parameter('search_min_rad').value
+            self._search_active = True
         self._mode = new_mode
 
     def _on_track_bearing(self, msg: Float32):

@@ -92,6 +92,10 @@ bash ~/fire_ws/scripts/kill_sim.sh
 - SEARCH_360: -π→+π 를 한 번 훑은 뒤 `/camera_pan/search_done`(Bool, true) 1회 발행, 이후 그 각도 유지.
 - TRACK: `/camera_pan/cmd` 가 `track_bearing` 값(≤1rad/s 속도 제한)으로 수렴.
 - HOLD: `/camera_pan/cmd` 가 더 이상 변하지 않음.
+- **[STEP6 반영]** 이미 SEARCH_360 모드이고 이전 훑기가 끝난 상태에서 `/camera_pan/mode`에
+  SEARCH_360 을 다시 발행하면(같은 값 재발행) 처음부터 재시작한다(`camera_pan_node.py`,
+  mission_manager_node 의 "못 찾음 → 재탐색"용). 최초 SWEEP_FRONT/SEARCH_360/TRACK/HOLD
+  전환 동작 자체는 이 수정으로 바뀌지 않았으므로 위 체크리스트는 그대로 유효.
 - HSV 모드: 불 3개 모두 `detected:true`, bbox 유효(x1<x2, y1<y2), **bearing 오차 < 10°**,
   **range 오차 < 0.3m**(정답: real_fire (-3.0,-4.3), fake_fire (2.0,4.3), hidden_fire (-4.3,0.6) — 단,
   hidden_fire 는 선반에 가려 안 보이는 지점에서는 애초에 미검출이 정상이며, STEP1 hidden_fire 시야

@@ -77,6 +77,8 @@ string reason                   # 사람이 읽는 판단 근거
 | `/fire/debug_image` | sensor_msgs/Image | viewer_node | 합성 영상 |
 | `/patrol/cmd` | std_msgs/String | 사용자/mission_manager | start / pause / resume / stop |
 | `/patrol/state` | std_msgs/String | patrol_node | |
+| `/mission/state` | std_msgs/String | mission_manager | PATROL/SEARCH/VERIFY/APPROACH/HOLD. fusion_node 가 구독해 FireStatus.mission_state 를 채움(STEP6에서 추가) |
+| `/mission/cmd` | std_msgs/String | 사용자 | resume(HOLD 해제, `/patrol/cmd resume`과 동일 취급, STEP6에서 추가) |
 | `/ground_truth/pose` | geometry_msgs/PoseStamped | bridge | **SIM ONLY** (가스/가상열화상용) |
 
 ## 4. 파라미터 파일 위치
